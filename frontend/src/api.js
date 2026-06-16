@@ -9,6 +9,7 @@ const api = axios.create({
 });
 
 export const getEnfant = (uid) => api.get(`/enfant/${uid}`);
+export const getLeaderboard = () => api.get('/classement');
 export const updatePoints = (data) => api.post('/points', data);
 export const getCadeaux = () => api.get('/boutique/cadeaux');
 export const effectuerAchat = (data) => api.post('/boutique/achat', data);

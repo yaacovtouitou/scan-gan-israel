@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import useNfcScanner from '../hooks/useNfcScanner';
-import { getEnfant } from '../api';
+import { getEnfant, getLeaderboard } from '../api';
 
-// Comptes de test (correspondant à init.sql)
-const DEMO_ACCOUNTS = [
-    { uid: '12345678', label: '🧒 Levi Cohen' },
-    { uid: '87654321', label: '👧 Sarah Levy' },
-];
+// Mode Demo désactivé
 
 // Hook pour animer un compteur de 0 à la valeur cible
 const useCountUp = (target, duration = 1500) => {
@@ -52,6 +48,7 @@ const Consultation = () => {
     const [error, setError] = useState('');
     const [confetti, setConfetti] = useState([]);
     const [isVibrating, setIsVibrating] = useState(false);
+    const [leaderboard, setLeaderboard] = useState([]);
     const animatedPoints = useCountUp(enfant ? enfant.solde : null);
     
     // Récupère la fonction pour activer le thème Prestige depuis Layout.jsx
@@ -61,15 +58,27 @@ const Consultation = () => {
     const closeTimeoutRef = useRef(null);
     const confettiTimeoutRef = useRef(null);
 
+    const fetchLeaderboard = async () => {
+        try {
+            const res = await getLeaderboard();
+            setLeaderboard(res.data || []);
+        } catch (err) {
+            console.error('Erreur lors du chargement du classement', err);
+            setLeaderboard([]);
+        }
+    };
+
     const handleClose = () => {
         if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
         if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
         setEnfant(null);
         setPrestigeMode(false);
         setConfetti([]);
+        fetchLeaderboard(); // Rafraîchit les scores après fermeture du profil
     };
 
     useEffect(() => {
+        fetchLeaderboard();
         return () => {
             if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
             if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
@@ -93,14 +102,30 @@ const Consultation = () => {
 
         try {
             const res = await getEnfant(uid);
-            setEnfant(res.data);
+            const enfantData = res.data;
+            setEnfant(enfantData);
             
             // Vibration de succès
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-            // Thème de prestige si rang maximum
-            if (res.data.solde >= 200) {
-                setPrestigeMode(true);
+            // Recupere le classement a jour pour determiner le rang du scan
+            let currentLeaderboard = [];
+            try {
+                const leaderboardRes = await getLeaderboard();
+                currentLeaderboard = leaderboardRes.data || [];
+            } catch (err) {
+                console.error('Erreur classement au scan', err);
+            }
+            setLeaderboard(currentLeaderboard);
+
+            // Thème de prestige selon le rang du classement (Or pour le 1er, Argent pour le 2ème)
+            const rankIndex = currentLeaderboard.findIndex(item => item.uid === uid);
+            if (rankIndex === 0) {
+                setPrestigeMode('gold');
+            } else if (rankIndex === 1) {
+                setPrestigeMode('silver');
+            } else {
+                setPrestigeMode(false);
             }
 
             // Célébration confettis (Explosion depuis le centre)
@@ -114,11 +139,6 @@ const Consultation = () => {
             }));
             setConfetti(particles);
 
-            // On cache le résultat après 10 secondes pour libérer la tablette pour le suivant
-            closeTimeoutRef.current = setTimeout(() => {
-                setEnfant(null);
-                setPrestigeMode(false);
-            }, 10000);
             confettiTimeoutRef.current = setTimeout(() => setConfetti([]), 4000);
         } catch (err) {
             setError('Carte inconnue !');
@@ -211,6 +231,27 @@ const Consultation = () => {
             {!enfant && !loading && !error && (
                 <div className="scan-waiting">
                     <div className="scan-waiting__container">
+                        {/* Classement / Leaderboard */}
+                        <div className="scan-waiting__leaderboard">
+                            <div className="leaderboard-card">
+                                <h2 className="leaderboard-title">🏆 Top 3 du Gan</h2>
+                                <div className="leaderboard-list">
+                                    {leaderboard.map((item, index) => {
+                                        const medals = ['🥇', '🥈', '🥉'];
+                                        return (
+                                            <div key={index} className={`leaderboard-row rank-${index + 1}`}>
+                                                <span className="leaderboard-row__medal">{medals[index]}</span>
+                                                <span className="leaderboard-row__name">
+                                                    {item.prenom} {item.nom ? item.nom[0] + '.' : ''}
+                                                </span>
+                                                <span className="leaderboard-row__points">{item.solde} pts</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="scan-waiting__left">
                             <div className="nfc-reader-container">
                                 {/* Ondes de scan animées en arrière-plan */}
@@ -243,10 +284,6 @@ const Consultation = () => {
                         </div>
 
                         <div className="scan-waiting__right">
-                            <div className="scan-waiting__camp-badge">
-                                🏕️ Camp Gan Israël
-                            </div>
-
                             {/* Slogan & Pensée du Rabbi */}
                             <div className="scan-waiting__inspiration">
                                 <p className="scan-waiting__slogan">L'été de ta vie ! ✨</p>
@@ -261,21 +298,7 @@ const Consultation = () => {
                         </div>
                     </div>
 
-                    {/* Console administrative de simulation */}
-                    <div className="demo-bar">
-                        <p className="demo-bar__label">🔧 Console d'Administration — Simuler Scan :</p>
-                        <div className="demo-bar__buttons">
-                            {DEMO_ACCOUNTS.map((account) => (
-                                <button
-                                    key={account.uid}
-                                    className="demo-bar__btn"
-                                    onClick={() => handleScan(account.uid)}
-                                >
-                                    {account.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    {/* Console administrative retirée */}
                 </div>
             )}
 
@@ -313,7 +336,10 @@ const Consultation = () => {
                     <div className="scan-result__avatar">
                         {getAvatarEmoji(enfant.prenom)}
                     </div>
-                    <h1 className="scan-result__name">{enfant.prenom} {enfant.nom}</h1>
+                    <h1 className="scan-result__name">
+                        <span className="scan-result__greeting">Salut </span>
+                        <span className="scan-result__username">{enfant.prenom} {enfant.nom}</span>
+                    </h1>
 
                     {/* Badge de Rang */}
                     <div style={{ marginBottom: 'var(--space-md)' }}>
@@ -358,8 +384,22 @@ const Consultation = () => {
                         })()}
                     </div>
 
-                    {/* Barre timer — se vide en 10s */}
-                    <div className="timer-bar" aria-hidden="true" />
+                    {/* Derniers Achats */}
+                    <div className="scan-result__purchases">
+                        <h3 className="purchases-title">🛍️ Mes Derniers Achats</h3>
+                        {enfant.derniersAchats && enfant.derniersAchats.length > 0 ? (
+                            <div className="purchases-list">
+                                {enfant.derniersAchats.map((achat, idx) => (
+                                    <div key={idx} className="purchase-row">
+                                        <span className="purchase-desc">{achat.description}</span>
+                                        <span className="purchase-points">-{achat.points} pts</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="purchases-empty">Aucun achat pour le moment</p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

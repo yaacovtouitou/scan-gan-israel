@@ -53,8 +53,13 @@ const Layout = () => {
         { to: '/boutique', icon: '🎁', label: 'Boutique' },
     ];
 
+    const prestigeTheme = prestigeMode ? (prestigeMode === true ? 'prestige-gold' : `prestige-${prestigeMode}`) : theme;
+    const prestigeActiveClasses = prestigeMode 
+        ? `prestige-active prestige-${prestigeMode === true ? 'gold' : prestigeMode}-active` 
+        : '';
+
     return (
-        <div className={`app-layout theme-${prestigeMode ? 'prestige' : theme} ${prestigeMode ? 'prestige-active' : ''}`}>
+        <div className={`app-layout theme-${prestigeTheme} ${prestigeActiveClasses}`}>
             {/* Orbes décoratives animées en arrière-plan */}
             <div className="bg-orbs-container" aria-hidden="true">
                 <div className="bg-orb bg-orb--1"></div>
@@ -176,7 +181,7 @@ const Layout = () => {
                             <path d="M50 43 C48 47 48 54 50 54 C52 54 52 47 50 43 Z" fill="#FFFBEB" />
                         </svg>
                         <h1 className="app-header__title">
-                            Bienvenue au Camp <span className="app-header__title-accent">Gan Israël</span>
+                            Bienvenue au <span className="app-header__title-accent">Gan Israël</span>
                         </h1>
                     </div>
                     <p className="app-header__subtitle">Mon espace de points</p>

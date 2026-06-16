@@ -28,13 +28,30 @@ app.get('/api/enfant/:uid', (req, res) => {
     db.query('SELECT * FROM enfants WHERE uid = ?', [uid], (err, results) => {
         if (err) return res.status(500).json(err);
         if (results.length === 0) return res.status(404).json({ message: 'Enfant non trouvé' });
-        res.json(results[0]);
+        
+        const enfant = results[0];
+        db.query('SELECT description, points, date_action FROM historique WHERE enfant_id = ? AND type = "ACHAT" ORDER BY date_action DESC LIMIT 3', 
+            [enfant.id], (err, purchases) => {
+                if (err) return res.status(500).json(err);
+                res.json({
+                    ...enfant,
+                    derniersAchats: purchases
+                });
+            });
     });
 });
 
 // GET tous les cadeaux
 app.get('/api/boutique/cadeaux', (req, res) => {
     db.query('SELECT * FROM cadeaux', (err, results) => {
+        if (err) return res.status(500).json(err);
+        res.json(results);
+    });
+});
+
+// GET top 3 enfants (classement)
+app.get('/api/classement', (req, res) => {
+    db.query('SELECT uid, prenom, nom, solde FROM enfants ORDER BY solde DESC LIMIT 3', (err, results) => {
         if (err) return res.status(500).json(err);
         res.json(results);
     });
