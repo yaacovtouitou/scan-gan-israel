@@ -3,7 +3,11 @@ import { useOutletContext } from 'react-router-dom';
 import useNfcScanner from '../hooks/useNfcScanner';
 import { getEnfant, getLeaderboard } from '../api';
 
-// Mode Demo désactivé
+// Comptes de test (correspondant à init.sql)
+const DEMO_ACCOUNTS = [
+    { uid: '12345678', label: '🧒 Levi Cohen' },
+    { uid: '87654321', label: '👧 Sarah Levy' },
+];
 
 // Hook pour animer un compteur de 0 à la valeur cible
 const useCountUp = (target, duration = 1500) => {
@@ -50,6 +54,7 @@ const Consultation = () => {
     const [isVibrating, setIsVibrating] = useState(false);
     const [leaderboard, setLeaderboard] = useState([]);
     const animatedPoints = useCountUp(enfant ? enfant.solde : null);
+    const animatedDollars = useCountUp(enfant ? enfant.dollars : null);
     
     // Récupère la fonction pour activer le thème Prestige depuis Layout.jsx
     const { setPrestigeMode } = useOutletContext() || { setPrestigeMode: () => {} };
@@ -118,12 +123,13 @@ const Consultation = () => {
             }
             setLeaderboard(currentLeaderboard);
 
-            // Thème de prestige selon le rang du classement (Or pour le 1er, Argent pour le 2ème)
-            const rankIndex = currentLeaderboard.findIndex(item => item.uid === uid);
-            if (rankIndex === 0) {
+            // Thème de prestige selon le solde de l'enfant (Gold pour >= 2630, Silver pour >= 2430, Bronze pour >= 2230)
+            if (enfantData.solde >= 2630) {
                 setPrestigeMode('gold');
-            } else if (rankIndex === 1) {
+            } else if (enfantData.solde >= 2430) {
                 setPrestigeMode('silver');
+            } else if (enfantData.solde >= 2230) {
+                setPrestigeMode('bronze');
             } else {
                 setPrestigeMode(false);
             }
@@ -140,6 +146,11 @@ const Consultation = () => {
             setConfetti(particles);
 
             confettiTimeoutRef.current = setTimeout(() => setConfetti([]), 4000);
+
+            // Fermeture automatique du profil après 20 secondes
+            closeTimeoutRef.current = setTimeout(() => {
+                handleClose();
+            }, 20000);
         } catch (err) {
             setError('Carte inconnue !');
             setEnfant(null);
@@ -161,31 +172,47 @@ const Consultation = () => {
 
     // Étoiles proportionnelles au solde
     const getStars = (solde) => {
-        if (solde >= 200) return '⭐⭐⭐⭐⭐';
-        if (solde >= 150) return '⭐⭐⭐⭐';
-        if (solde >= 100) return '⭐⭐⭐';
-        if (solde >= 50) return '⭐⭐';
-        if (solde >= 10) return '⭐';
+        if (solde >= 2630) return '⭐⭐⭐⭐⭐';
+        if (solde >= 2430) return '⭐⭐⭐⭐';
+        if (solde >= 2230) return '⭐⭐⭐';
+        if (solde >= 2010) return '⭐⭐';
+        if (solde >= 1780) return '⭐';
         return '';
     };
 
     // Rangs de camping basés sur le solde
     const getCampRank = (solde) => {
-        if (solde >= 200) return { title: '🚀 Roi du Gan', class: 'rank-badge--5' };
-        if (solde >= 150) return { title: '👑 Légende du Camp', class: 'rank-badge--4' };
-        if (solde >= 100) return { title: '🦅 Super Campeur', class: 'rank-badge--3' };
-        if (solde >= 50) return { title: '🔥 Éclaireur', class: 'rank-badge--2' };
-        return { title: '🏕️ Jeune Campeur', class: 'rank-badge--1' };
+        if (solde >= 2630) return { title: '👑 General 3 étoiles', class: 'rank-badge--5' };
+        if (solde >= 2430) return { title: '🌠 General 2 étoiles', class: 'rank-badge--4' };
+        if (solde >= 2230) return { title: '⭐ General 1 étoile', class: 'rank-badge--3' };
+        if (solde >= 2010) return { title: '⚡ General', class: 'rank-badge--2' };
+        if (solde >= 1780) return { title: '🔥 Colonel', class: 'rank-badge--1' };
+        if (solde >= 1500) return { title: '🦁 Capitaine', class: 'rank-badge--1' };
+        if (solde >= 1370) return { title: '🦅 Lieutenant', class: 'rank-badge--1' };
+        if (solde >= 1140) return { title: '💫 Sous-Lieutenant', class: 'rank-badge--1' };
+        if (solde >= 900) return { title: '🌟 Adjudant-Chef', class: 'rank-badge--1' };
+        if (solde >= 670) return { title: '🏅 Adjudant', class: 'rank-badge--1' };
+        if (solde >= 420) return { title: '🎖️ Sergent', class: 'rank-badge--1' };
+        if (solde >= 230) return { title: '⚔️ Caporal', class: 'rank-badge--1' };
+        return { title: '🪖 Soldat', class: 'rank-badge--1' };
     };
 
     // Calcul de la progression vers le prochain rang
     const getRankProgress = (solde) => {
         const tiers = [
-            { threshold: 0, title: '🏕️ Jeune Campeur', nextThreshold: 50, nextTitle: '🔥 Éclaireur' },
-            { threshold: 50, title: '🔥 Éclaireur', nextThreshold: 100, nextTitle: '🦅 Super Campeur' },
-            { threshold: 100, title: '🦅 Super Campeur', nextThreshold: 150, nextTitle: '👑 Légende du Camp' },
-            { threshold: 150, title: '👑 Légende du Camp', nextThreshold: 200, nextTitle: '🚀 Roi du Gan' },
-            { threshold: 200, title: '🚀 Roi du Gan', nextThreshold: null, nextTitle: null }
+            { threshold: 0, title: '🪖 Soldat', nextThreshold: 230, nextTitle: '⚔️ Caporal' },
+            { threshold: 230, title: '⚔️ Caporal', nextThreshold: 420, nextTitle: '🎖️ Sergent' },
+            { threshold: 420, title: '🎖️ Sergent', nextThreshold: 670, nextTitle: '🏅 Adjudant' },
+            { threshold: 670, title: '🏅 Adjudant', nextThreshold: 900, nextTitle: '🌟 Adjudant-Chef' },
+            { threshold: 900, title: '🌟 Adjudant-Chef', nextThreshold: 1140, nextTitle: '💫 Sous-Lieutenant' },
+            { threshold: 1140, title: '💫 Sous-Lieutenant', nextThreshold: 1370, nextTitle: '🦅 Lieutenant' },
+            { threshold: 1370, title: '🦅 Lieutenant', nextThreshold: 1500, nextTitle: '🦁 Capitaine' },
+            { threshold: 1500, title: '🦁 Capitaine', nextThreshold: 1780, nextTitle: '🔥 Colonel' },
+            { threshold: 1780, title: '🔥 Colonel', nextThreshold: 2010, nextTitle: '⚡ General' },
+            { threshold: 2010, title: '⚡ General', nextThreshold: 2230, nextTitle: '⭐ General 1 étoile' },
+            { threshold: 2230, title: '⭐ General 1 étoile', nextThreshold: 2430, nextTitle: '🌠 General 2 étoiles' },
+            { threshold: 2430, title: '🌠 General 2 étoiles', nextThreshold: 2630, nextTitle: '👑 General 3 étoiles' },
+            { threshold: 2630, title: '👑 General 3 étoiles', nextThreshold: null, nextTitle: null }
         ];
         
         // On cherche le tier actuel en partant du plus haut
@@ -231,20 +258,19 @@ const Consultation = () => {
             {!enfant && !loading && !error && (
                 <div className="scan-waiting">
                     <div className="scan-waiting__container">
-                        {/* Classement / Leaderboard */}
+                        {/* Derniers scans */}
                         <div className="scan-waiting__leaderboard">
                             <div className="leaderboard-card">
-                                <h2 className="leaderboard-title">🏆 Top 3 du Gan</h2>
+                                <h2 className="leaderboard-title">🕒 Derniers Scans</h2>
                                 <div className="leaderboard-list">
                                     {leaderboard.map((item, index) => {
-                                        const medals = ['🥇', '🥈', '🥉'];
+                                        const scanIcons = ['⚡', '🕒', '🕒'];
                                         return (
                                             <div key={index} className={`leaderboard-row rank-${index + 1}`}>
-                                                <span className="leaderboard-row__medal">{medals[index]}</span>
+                                                <span className="leaderboard-row__medal">{scanIcons[index]}</span>
                                                 <span className="leaderboard-row__name">
-                                                    {item.prenom} {item.nom ? item.nom[0] + '.' : ''}
+                                                    {item.prenom} {item.nom}
                                                 </span>
-                                                <span className="leaderboard-row__points">{item.solde} pts</span>
                                             </div>
                                         );
                                     })}
@@ -279,26 +305,40 @@ const Consultation = () => {
                             </div>
                             <h1 className="scan-waiting__title">Scanne ta carte !</h1>
                             <p className="scan-waiting__subtitle">
-                                Pose-la sur le lecteur pour voir tes points
+                                Pose-la sur le lecteur pour voir tes points et tes dollars
                             </p>
                         </div>
 
                         <div className="scan-waiting__right">
                             {/* Slogan & Pensée du Rabbi */}
                             <div className="scan-waiting__inspiration">
-                                <p className="scan-waiting__slogan">L'été de ta vie ! ✨</p>
+                                <p className="scan-waiting__slogan">En fonction de l'effort la récompense  ✨</p>
                                 <div className="scan-waiting__quote-box">
                                     <span className="quote-icon" aria-hidden="true">❝</span>
                                     <p className="quote-text">
-                                        Un peu de lumière repousse beaucoup d'obscurité.
+                                        En fonction de l'effort la récompense.
                                     </p>
-                                    <p className="quote-author">— Le Rabbi de Loubavitch</p>
+                                    <p className="quote-author">— Gan Israel</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Console administrative retirée */}
+                    {/* Console administrative de simulation */}
+                    <div className="demo-bar">
+                        <p className="demo-bar__label">🔧 Console d'Administration — Simuler Scan :</p>
+                        <div className="demo-bar__buttons">
+                            {DEMO_ACCOUNTS.map((account) => (
+                                <button
+                                    key={account.uid}
+                                    className="demo-bar__btn"
+                                    onClick={() => handleScan(account.uid)}
+                                >
+                                    {account.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -334,7 +374,11 @@ const Consultation = () => {
                     <span className="scan-result__camp-tag">Gan Israël</span>
 
                     <div className="scan-result__avatar">
-                        {getAvatarEmoji(enfant.prenom)}
+                        <img 
+                            src="/logo.png" 
+                            alt="Logo Gan Israël" 
+                            className="scan-result__avatar-img"
+                        />
                     </div>
                     <h1 className="scan-result__name">
                         <span className="scan-result__greeting">Salut </span>
@@ -348,17 +392,26 @@ const Consultation = () => {
                         </span>
                     </div>
 
-                    <div className="scan-result__points-box">
-                        <p className="scan-result__points-label">Ton solde actuel</p>
-                        <p className="scan-result__points-value">
-                            {animatedPoints}
-                            <span className="scan-result__points-unit"> pts</span>
-                        </p>
-                        {enfant.solde > 0 && (
-                            <p className="scan-result__points-stars" aria-label={`Niveau ${Math.min(5, Math.floor(enfant.solde / 40) + 1)} étoiles`}>
-                                {getStars(enfant.solde)}
+                    <div className="scan-result__balances-grid">
+                        <div className="scan-result__points-box">
+                            <p className="scan-result__points-label">Points</p>
+                            <p className="scan-result__points-value">
+                                {animatedPoints}
+                                <span className="scan-result__points-unit"> pts</span>
                             </p>
-                        )}
+                            {enfant.solde > 0 && (
+                                <p className="scan-result__points-stars" aria-label={`Niveau ${Math.min(5, Math.floor(enfant.solde / 40) + 1)} étoiles`}>
+                                    {getStars(enfant.solde)}
+                                </p>
+                            )}
+                        </div>
+                        <div className="scan-result__points-box">
+                            <p className="scan-result__points-label">Dollars</p>
+                            <p className="scan-result__points-value">
+                                {animatedDollars}
+                                <span className="scan-result__points-unit"> $</span>
+                            </p>
+                        </div>
                     </div>
 
                     {/* Progression vers le prochain rang */}
@@ -392,13 +445,18 @@ const Consultation = () => {
                                 {enfant.derniersAchats.map((achat, idx) => (
                                     <div key={idx} className="purchase-row">
                                         <span className="purchase-desc">{achat.description}</span>
-                                        <span className="purchase-points">-{achat.points} pts</span>
+                                        <span className="purchase-points">-{achat.points} $</span>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <p className="purchases-empty">Aucun achat pour le moment</p>
                         )}
+                    </div>
+
+                    {/* Barre de compte à rebours visuelle (20s) */}
+                    <div className="timer-bar-container">
+                        <div className="timer-bar" />
                     </div>
                 </div>
             )}

@@ -81,6 +81,7 @@
   --drift: 0px;
   --dx: 0px;
   --dy: 0px;
+  --footer-height: 52px;
 }
 
 /* ---------- Reset & Base ---------- */
@@ -1413,6 +1414,16 @@ h3, h4, h5, h6 {
     popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both,
     avatarFloat 4s ease-in-out infinite alternate;
   border: 4px solid var(--white);
+  overflow: hidden;
+}
+
+.scan-result__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  background: var(--white);
+  padding: var(--space-xs);
 }
 
 .theme-prestige-gold .scan-result__avatar {
@@ -1825,7 +1836,7 @@ h3, h4, h5, h6 {
 .cart {
   position: fixed;
   top: 0;
-  bottom: 0;
+  bottom: var(--footer-height);
   right: 0;
   left: auto;
   z-index: 110;
@@ -1843,7 +1854,7 @@ h3, h4, h5, h6 {
   flex-direction: column;
   gap: var(--space-lg);
   width: 380px;
-  height: 100vh;
+  height: calc(100% - var(--footer-height));
   align-items: stretch;
   
   /* Slide transition from right */
@@ -2225,7 +2236,7 @@ h3, h4, h5, h6 {
 @media (orientation: portrait) {
   .cart {
     top: auto;
-    bottom: 0;
+    bottom: var(--footer-height);
     left: 0;
     right: 0;
     width: 100%;
@@ -2246,7 +2257,7 @@ h3, h4, h5, h6 {
   
   .cart--visible ~ .gifts-grid {
     padding-right: 0;
-    padding-bottom: 290px;
+    padding-bottom: calc(270px + var(--footer-height) + var(--space-md));
   }
   
   .cart__main-panel {
@@ -2268,8 +2279,12 @@ h3, h4, h5, h6 {
 
 /* --- Mobile Breakpoint (max-width: 680px) --- */
 @media (max-width: 680px) {
+  :root {
+    --footer-height: 40px;
+  }
+
   .cart {
-    bottom: 0;
+    bottom: var(--footer-height);
     top: auto;
     left: 0;
     right: 0;
@@ -2292,7 +2307,7 @@ h3, h4, h5, h6 {
   
   .cart--visible ~ .gifts-grid {
     padding-right: 0;
-    padding-bottom: 240px;
+    padding-bottom: calc(48vh + var(--footer-height) + var(--space-md));
   }
   
   .cart__main-panel {
@@ -3011,3 +3026,236 @@ h3, h4, h5, h6 {
   border-color: #94a3b8 !important;
   transform: translateY(-1px) !important;
 }
+
+/* ---------- App Footer ---------- */
+.app-footer {
+  text-align: center;
+  height: var(--footer-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.app-footer__text {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-family);
+  margin: 0;
+  line-height: 1.4;
+  padding: 0 var(--space-md);
+}
+
+.app-footer__highlight {
+  color: var(--gold-light);
+  font-weight: 600;
+  text-shadow: 0 0 10px rgba(254, 243, 199, 0.3);
+}
+
+@media (max-width: 600px) {
+  .app-footer__text {
+    font-size: 0.75rem;
+  }
+}
+
+/* ---------- Visual Reset Timer Bar ---------- */
+.timer-bar-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  margin-top: var(--space-xl);
+  overflow: hidden;
+  position: relative;
+}
+
+.timer-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+  width: 100%;
+  animation: shrinkTimer 20s linear forwards;
+  transform-origin: left;
+}
+
+@keyframes shrinkTimer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Balances Grid ---------- */
+.scan-result__balances-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  width: 100%;
+}
+
+.scan-result__balances-grid .scan-result__points-box {
+  padding: var(--space-lg) var(--space-md);
+}
+
+.scan-result__balances-grid .scan-result__points-value {
+  font-size: 2.2rem;
+}
+
+@media (max-width: 600px) {
+  .scan-result__balances-grid .scan-result__points-value {
+    font-size: 1.8rem;
+  }
+  .scan-result__balances-grid .scan-result__points-box {
+    padding: var(--space-md) var(--space-sm);
+  }
+}
+
+/* ---------- Thème Dynamique Prestige (3ème - BRONZE) ---------- */
+.app-layout.theme-prestige-bronze {
+  background: radial-gradient(circle at 50% 50%, #d97706 0%, #451a03 100%);
+  animation: prestigeFlash 0.5s ease-out;
+}
+.app-layout.theme-prestige-bronze .bg-orb--1 {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, transparent 80%);
+  animation-duration: 4s !important;
+}
+.app-layout.theme-prestige-bronze .bg-orb--2 {
+  background: radial-gradient(circle, rgba(254, 215, 170, 0.85) 0%, transparent 80%);
+  animation-duration: 6s !important;
+}
+.app-layout.theme-prestige-bronze .bg-orb--3 {
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.85) 0%, transparent 80%);
+  animation-duration: 5s !important;
+}
+
+.prestige-bronze-active .floating-letter {
+  color: #ffedd5;
+  text-shadow: 0 0 15px rgba(249, 115, 22, 0.8);
+  font-weight: 900;
+}
+
+/* Bronze Card Overrides */
+.theme-prestige-bronze .scan-result {
+  background: rgba(24, 15, 8, 0.82);
+  border: 2px solid rgba(217, 119, 6, 0.5);
+  box-shadow: 
+    0 0 35px rgba(217, 119, 6, 0.25),
+    0 30px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #fffbeb;
+}
+
+.theme-prestige-bronze .scan-result__close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.theme-prestige-bronze .scan-result__close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.theme-prestige-bronze .scan-result__camp-tag {
+  background: linear-gradient(135deg, #f97316 0%, #7c2d12 100%);
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);
+  color: #fffbeb;
+}
+
+.theme-prestige-bronze .scan-result__avatar {
+  background: linear-gradient(135deg, #f97316 0%, #451a03 100%);
+  border-color: #d97706;
+  box-shadow: 0 0 25px rgba(217, 119, 6, 0.5), 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.theme-prestige-bronze .scan-result__greeting {
+  color: rgba(254, 215, 170, 0.75);
+}
+
+.theme-prestige-bronze .scan-result__username {
+  background: linear-gradient(135deg, #ffedd5, #f97316, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(217, 119, 6, 0.2));
+}
+
+.theme-prestige-bronze .scan-result__points-box {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.14), rgba(0, 0, 0, 0.2));
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.theme-prestige-bronze .scan-result__points-label {
+  color: rgba(254, 215, 170, 0.6);
+}
+
+.theme-prestige-bronze .scan-result__points-value {
+  background: linear-gradient(135deg, #ffedd5, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 15px rgba(217, 119, 6, 0.5));
+}
+
+.theme-prestige-bronze .scan-result__points-unit {
+  -webkit-text-fill-color: rgba(254, 215, 170, 0.7);
+}
+
+.theme-prestige-bronze .scan-result__purchases {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(217, 119, 6, 0.26);
+}
+
+.theme-prestige-bronze .purchases-title {
+  color: #ffedd5;
+  text-shadow: 0 0 10px rgba(217, 119, 6, 0.3);
+}
+
+.theme-prestige-bronze .purchase-row {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+}
+
+.theme-prestige-bronze .purchase-desc {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.theme-prestige-bronze .purchase-points {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.theme-prestige-bronze .purchases-empty {
+  color: rgba(254, 215, 170, 0.4);
+}
+
+.theme-prestige-bronze .rank-progress-bar {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.8);
+}
+
+.theme-prestige-bronze .rank-progress-fill {
+  background: linear-gradient(90deg, #7c2d12, #f97316);
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.9);
+}
+
+.theme-prestige-bronze .rank-progress-text {
+  color: rgba(254, 215, 170, 0.75);
+}
+
+.theme-prestige-bronze .rank-progress-text strong {
+  color: #ffedd5;
+}
+

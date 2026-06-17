@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="he" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Tsivot Hashem Dashboard</title>
+<meta name="theme-color" content="#1a2744"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Tsivot Dash"/>
+<link rel="manifest" href="#"/>
+ 
+<script>
+  // ===================== STATE =====================
+  let currentUser = null;
+  let currentClub = null;
+  let isAdmin = false;
+  let children = {};
+  let missionNames = {};
+  let allClubs = {};
+  let gifts = [];
+  let currentChildId = null;
+  let currentPage = 'list'; // 'list' | 'child' | 'admin' | 'boutique'
+ 
+  const giftEmojiMap = {
+    'porte-clé': '🔑',
+    'casquette': '🧢',
+    't-shirt': '👕',
+    'bracelet': '📿',
+    'peluche': '🧸',
+    'ballon': '⚽',
+    'livre': '📚',
+    'jeu': '🎮',
+    'bonbon': '🍬',
+    'stylo': '🖊️',
+    'sticker': '⭐',
+    'puzzle': '🧩',
+    'gourde': '🥤',
+    'sac': '🎒',
+  };
+
+  const Mu = (name) => {
+    if (!name) return '🎁';
+    const lower = name.toLowerCase();
+    for (const [key, emoji] of Object.entries(giftEmojiMap)) {
+      if (lower.includes(key)) return emoji;
+    }
+    return '🎁';
+  };
+
+  const DEFAULT_MISSIONS = {
+    M1:"Mission 1",M2:"Mission 2",M3:"Mission 3",
+    M4:"Mission 4",M5:"Mission 5",M6:"Mission 6",
+    M7:"Mission 7",M8:"Mission 8",M9:"Mission 9",
+    M10:"Mission 10",M11:"Mission 11 (Finale)",
+    M12:"Mission 12 (Finale)",M13:"Mission 13 (Finale)"
+  };
+ 
+  const MISSION_DOLLARS = {M1:10,M2:20,M3:30,M4:10,M5:20,M6:30,M7:10,M8:20,M9:30,M10:10,M11:30,M12:30,M13:30};
+  const GRADES = [
+    {name:"Soldat",pts:0,icon:"🪖",color:"#6b7280"},
+    {name:"Caporal",pts:230,icon:"⚔️",color:"#78716c"},
+    {name:"Sergent",pts:420,icon:"🎖️",color:"#92400e"},
+    {name:"Adjudant",pts:670,icon:"🏅",color:"#b45309"},
+    {name:"Adjudant-Chef",pts:900,icon:"🌟",color:"#ca8a04"},
+    {name:"Sous-Lieutenant",pts:1140,icon:"💫",color:"#4f46e5"},
+    {name:"Lieutenant",pts:1370,icon:"🦅",color:"#7c3aed"},
+    {name:"Capitaine",pts:1500,icon:"🦁",color:"#dc2626"},
+    {name:"Colonel",pts:1780,icon:"🔥",color:"#ea580c"},
+    {name:"General",pts:2010,icon:"⚡",color:"#d97706"},
+    {name:"General 1 étoile",pts:2230,icon:"⭐",color:"#cd7f32"},
+    {name:"General 2 étoiles",pts:2430,icon:"🌠",color:"#c0c0c0"},
+    {name:"General 3 étoiles",pts:2630,icon:"👑",color:"#ffd700"},
+  ];
+ 
+  function getGrade(pts){
+    let g = GRADES[0];
+    for(const gr of GRADES){ if(pts>=gr.pts) g=gr; else break; }
+    return g;
+  }
+  function getNextGrade(pts){
+    for(const gr of GRADES){ if(gr.pts>pts) return gr; }
+    return null;
+  }
+ 
+  // ===================== AUTH =====================
+  window.addEventListener('DOMContentLoaded', async () => {
+    const storedUser = localStorage.getItem('adminUser');
+    if (storedUser) {
+      try {
+        currentUser = JSON.parse(storedUser);
+        currentClub = currentUser.club;
+        isAdmin = currentUser.role === 'admin';
+        await startListening();
+        renderApp();
+      } catch (e) {
+        localStorage.removeItem('adminUser');
+        renderLogin();
+      }
+    } else {
+      renderLogin();
+    }
+  });
+ 
+  async function startListening(){
+    // Fetch missions config from backend MySQL database
+    await fetchMissionsFromDb();
+    // Fetch children from local MySQL database
+    await fetchChildrenFromDb();
+  }
+
+  async function fetchMissionsFromDb(){
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`);
+      const data = await res.json();
+      if (data) {
+        missionNames = data;
+      } else {
+        missionNames = {...DEFAULT_MISSIONS};
+      }
+    } catch(e) {
+      console.error("Erreur de chargement des missions depuis MySQL:", e);
+      missionNames = {...DEFAULT_MISSIONS};
+    }
+  }
+
+  async function fetchChildrenFromDb(){
+    try {
+      const url = isAdmin 
+        ? `http://${window.location.hostname}:3001/api/admin/enfants` 
+        : `http://${window.location.hostname}:3001/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      children = {};
+      if (Array.isArray(data)) {
+        data.forEach(c => {
+          let adminData = {};
+          try {
+            adminData = c.admin_data ? JSON.parse(c.admin_data) : {};
+          } catch(e) {
+            adminData = {};
+          }
+          
+          children[c.id] = {
+            id: c.id,
+            uid: c.uid,
+            nom: c.nom,
+            prenom: c.prenom,
+            name: `${c.prenom} ${c.nom}`,
+            camp: c.camp,
+            totalPoints: Number(c.solde) || 0,
+            dollars: Number(c.dollars) || 0,
+            missions: adminData.missions || {},
+            bonusHistory: adminData.bonusHistory || [],
+            lastActivity: adminData.lastActivity || 0,
+            createdAt: c.created_at ? new Date(c.created_at).getTime() : Date.now()
+          };
+        });
+      }
+      renderApp();
+    } catch(e) {
+      console.error("Erreur de chargement des enfants depuis MySQL:", e);
+    }
+  }
+
+  async function fetchGiftsFromDb(){
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/boutique/cadeaux`);
+      const data = await res.json();
+      gifts = Array.isArray(data) ? data : [];
+      if(currentPage==='boutique') renderApp();
+    } catch(e) {
+      console.error("Erreur de chargement des articles :", e);
+      gifts = [];
+    }
+  }
+
+  async function loadAllClubs(){
+    await fetchChildrenFromDb();
+    allClubs = {};
+    allClubs[currentClub] = children;
+    renderApp();
+  }
+ 
+  // ===================== DATA OPS =====================
+  async function saveChild(id, childData){
+    const payload = {
+      uid: childData.uid,
+      nom: childData.nom,
+      prenom: childData.prenom,
+      solde: childData.totalPoints,
+      dollars: childData.dollars,
+      camp: childData.camp,
+      admin_data: JSON.stringify({
+        missions: childData.missions,
+        bonusHistory: childData.bonusHistory,
+        lastActivity: childData.lastActivity
+      })
+    };
+
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert("Erreur de sauvegarde : " + err.message);
+      } else {
+        await fetchChildrenFromDb();
+      }
+    } catch(err) {
+      console.error("Network error updating child:", err);
+    }
+  }
+
+  async function deleteChild(id){
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        alert("Erreur lors de la suppression");
+      } else {
+        await fetchChildrenFromDb();
+      }
+    } catch(err) {
+      alert("Erreur de connexion : " + err.message);
+    }
+  }
+
+  async function saveMissions(){
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missions: missionNames })
+      });
+      if (!res.ok) {
+        alert("Erreur de sauvegarde des missions");
+      }
+    } catch(err) {
+      console.error("Erreur de connexion lors de la sauvegarde des missions:", err);
+    }
+  }
+ 
+  function checkDollarReset(child){
+    const now = Date.now();
+    const last = child.lastActivity||0;
+    if(now-last > 12*60*60*1000){
+      child.dollars = 0;
+      child.missions = {};
+    }
+    return child;
+  }
+ 
+  async function toggleMission(childId, mKey){
+    let child = {...children[childId]};
+    child = checkDollarReset(child);
+    const done = child.missions[mKey]||false;
+    if(done){
+      child.missions[mKey]=false;
+      child.totalPoints = Math.max(0, child.totalPoints-13);
+      child.dollars = Math.max(0, child.dollars-(MISSION_DOLLARS[mKey]||0));
+    } else {
+      child.missions[mKey]=true;
+      child.totalPoints += 13;
+      child.dollars += MISSION_DOLLARS[mKey]||0;
+    }
+    child.lastActivity = Date.now();
+    await saveChild(childId, child);
+  }
+ 
+  async function addBonusPoints(childId, pts, isRemove){
+    let child = {...children[childId]};
+    const delta = isRemove ? -Math.abs(pts) : Math.abs(pts);
+    child.totalPoints = Math.max(0, child.totalPoints+delta);
+    child.bonusHistory = child.bonusHistory||[];
+    child.bonusHistory.push({delta, date:Date.now()});
+    child.lastActivity = Date.now();
+    await saveChild(childId, child);
+  }
+ 
+  async function resetChildMissions(childId){
+    let child = {...children[childId]};
+    child.missions = {};
+    child.dollars = 0;
+    child.lastActivity = Date.now();
+    await saveChild(childId, child);
+  }
+ 
+  // ===================== RENDER =====================
+  function renderLogin(){
+    document.getElementById('app').innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        <div class="login-logo">
+          <img src="/logo.png" style="width:90px;height:90px;object-fit:contain;border-radius:12px;margin-bottom:8px;"/>
+          <h1>Tsivot Hashem</h1>
+          <p>Dashboard</p>
+        </div>
+        <div id="login-error" class="login-error" style="display:none"></div>
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <input type="text" id="login-email" placeholder="admin" autocomplete="username"/>
+        </div>
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+        <button class="btn-login" onclick="window._login()">
+          <span>Connexion</span> <span>→</span>
+        </button>
+      </div>
+    </div>`;
+    document.getElementById('login-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')window._login();});
+  }
+ 
+  window._login = async function(){
+    const usernameInput = document.getElementById('login-email').value.trim();
+    const pwd = document.getElementById('login-pwd').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display='none';
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput, password: pwd })
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        currentUser = resData;
+        currentClub = resData.club;
+        isAdmin = resData.role === 'admin';
+        localStorage.setItem('adminUser', JSON.stringify(resData));
+        await startListening();
+        renderApp();
+      } else {
+        errEl.textContent = resData.message || "Nom d'utilisateur ou mot de passe incorrect";
+        errEl.style.display='block';
+      }
+    } catch(e){
+      errEl.textContent = "Erreur de connexion au serveur";
+      errEl.style.display='block';
+    }
+  };
+ 
+  function renderApp(){
+    const app = document.getElementById('app');
+    if(currentPage==='list') app.innerHTML = renderListPage();
+    else if(currentPage==='child') app.innerHTML = renderChildPage();
+    else if(currentPage==='admin') app.innerHTML = renderAdminPage();
+    else if(currentPage==='boutique') app.innerHTML = renderBoutiquePage();
+    attachEvents();
+  }
+ 
+  function renderListPage(){
+    const q = window._searchQ||'';
+    const filtered = Object.entries(children).filter(([id,c])=>
+      c.name.toLowerCase().includes(q.toLowerCase())
+    ).sort((a,b)=>b[1].totalPoints-a[1].totalPoints);
+ 
+    return `
+    <div class="app-container">
+      <header class="app-header">
+        <div class="header-left">
+          <img src="/logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:6px;"/>
+          <div>
+            <h1 class="header-title">Tsivot Hashem</h1>
+            <p class="header-sub">${isAdmin?'Admin — tous les clubs':(currentClub ? 'Club '+currentClub.charAt(0).toUpperCase()+currentClub.slice(1) : '')}</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" onclick="window._goBoutiqueManagement()" title="Gérer la boutique">🎁</button>
+          <button class="icon-btn" onclick="window._goAdmin()" title="Paramètres missions">⚙️</button>
+          <button class="icon-btn" onclick="window._logout()" title="Déconnexion">🚪</button>
+        </div>
+      </header>
+ 
+      <div class="search-add-bar">
+        <input class="search-input" type="text" placeholder="🔍 Rechercher un soldat..." 
+               value="${q}" oninput="window._search(this.value)"/>
+        <button class="btn-add" onclick="window._addChild()">+ Ajouter</button>
+      </div>
+ 
+      <div class="stats-banner">
+        <div class="stat-item">
+          <span class="stat-val">${Object.keys(children).length}</span>
+          <span class="stat-lbl">Soldats</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">${Object.values(children).reduce((s,c)=>s+c.totalPoints,0)}</span>
+          <span class="stat-lbl">Points total</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">${Object.values(children).filter(c=>Object.values(c.missions||{}).some(Boolean)).length}</span>
+          <span class="stat-lbl">Actifs</span>
+        </div>
+      </div>
+ 
+      <div class="children-grid">
+        ${filtered.length===0?`<div class="empty-state">Aucun soldat trouvé<br><small>Cliquez sur + Ajouter</small></div>`:''}
+        ${filtered.map(([id,child],idx)=>{
+          const g = getGrade(child.totalPoints);
+          const ng = getNextGrade(child.totalPoints);
+          const pct = ng ? Math.round(((child.totalPoints-g.pts)/(ng.pts-g.pts))*100) : 100;
+          const missions = child.missions||{};
+          const doneCount = Object.values(missions).filter(Boolean).length;
+          return `
+          <div class="child-card" onclick="window._openChild('${id}')" style="border-left: 4px solid ${g.color}">
+            <div class="card-rank">#${idx+1}</div>
+            <div class="card-top">
+              <div class="card-avatar">${g.icon}</div>
+              <div class="card-info">
+                <div class="card-name">${child.name}</div>
+                <div class="card-grade" style="color:${g.color}">${g.name}</div>
+              </div>
+              <div class="card-pts">${child.totalPoints}<small>pts</small></div>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width:${pct}%;background:${g.color}"></div>
+            </div>
+            <div class="card-footer">
+              <span>💰 ${child.dollars||0}$</span>
+              <span>✅ ${doneCount}/13</span>
+              ${ng?`<span>→ ${ng.name}</span>`:`<span>🏆 MAX</span>`}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+ 
+  function renderChildPage(){
+    const child = children[currentChildId];
+    if(!child) { currentPage='list'; return renderListPage(); }
+    const g = getGrade(child.totalPoints);
+    const ng = getNextGrade(child.totalPoints);
+    const pct = ng ? Math.round(((child.totalPoints-g.pts)/(ng.pts-g.pts))*100) : 100;
+    const missions = child.missions||{};
+    const doneCount = Object.values(missions).filter(Boolean).length;
+ 
+    const missionKeys = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13'];
+ 
+    return `
+    <div class="app-container">
+      <header class="app-header">
+        <button class="icon-btn" onclick="window._back()">← Retour</button>
+        <h2 class="header-title">${child.name}</h2>
+        <button class="icon-btn danger" onclick="window._confirmDelete('${currentChildId}')">🗑️</button>
+      </header>
+ 
+      <div class="child-hero">
+        <div class="hero-avatar">${g.icon}</div>
+        <div class="hero-grade" style="color:${g.color}">${g.name}</div>
+        <div class="hero-pts">${child.totalPoints} pts</div>
+        <div class="progress-bar-wrap hero-progress">
+          <div class="progress-bar-fill" style="width:${pct}%;background:${g.color}"></div>
+        </div>
+        ${ng?`<div class="hero-next">→ ${ng.name} dans ${ng.pts-child.totalPoints} pts (${pct}%)</div>`:`<div class="hero-next">🏆 Grade maximum atteint !</div>`}
+        <div class="hero-stats">
+          <div class="hstat">💰 ${child.dollars||0}$</div>
+          <div class="hstat">✅ ${doneCount}/13</div>
+        </div>
+      </div>
+ 
+      <div class="section-title">Missions du jour</div>
+      <div class="missions-list">
+        ${missionKeys.map(mk=>{
+          const done = missions[mk]||false;
+          const $ = MISSION_DOLLARS[mk];
+          const isFinal = mk==='M11'||mk==='M12'||mk==='M13';
+          const dollarClass = $===10?'dollar-low':$===20?'dollar-mid':'dollar-high';
+          return `
+          <div class="mission-row ${done?'mission-done':''}" onclick="window._toggleMission('${mk}')">
+            <div class="mission-check">${done?'✅':'⬜'}</div>
+            <div class="mission-text">
+              <span class="mission-name">${missionNames[mk]||DEFAULT_MISSIONS[mk]}</span>
+              ${isFinal?'<span class="finale-badge">FINALE</span>':''}
+            </div>
+            <div class="mission-dollar ${dollarClass}">+${$}$</div>
+          </div>`;
+        }).join('')}
+      </div>
+ 
+      <div class="section-title">Points bonus / retrait</div>
+      <div class="bonus-area">
+        <div class="bonus-box">
+          <div class="bonus-label">➕ Ajouter des points</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-add" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus add" onclick="window._applyBonus(false)">Valider</button>
+          </div>
+        </div>
+        <div class="bonus-box">
+          <div class="bonus-label">➖ Retirer des points</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-remove" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus remove" onclick="window._applyBonus(true)">Valider</button>
+          </div>
+        </div>
+      </div>
+ 
+      <div class="reset-area">
+        <button class="btn-reset" onclick="window._resetMissions()">🔄 Réinitialiser les missions du jour</button>
+      </div>
+    </div>`;
+  }
+ 
+  function renderAdminPage(){
+    const mKeys = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13'];
+    return `
+    <div class="app-container">
+      <header class="app-header">
+        <button class="icon-btn" onclick="window._back()">← Retour</button>
+        <h2 class="header-title">⚙️ Paramètres missions</h2>
+        <div></div>
+      </header>
+      <div class="admin-intro">Renommez les missions. Les noms s'affichent pour tous les enfants du club.</div>
+      <div class="admin-missions">
+        ${mKeys.map(mk=>{
+          const $=MISSION_DOLLARS[mk];
+          const isFinal=mk==='M11'||mk==='M12'||mk==='M13';
+          return `
+          <div class="admin-mission-item">
+            <div class="admin-mission-header">
+              <span class="admin-mission-key">${mk}</span>
+              <span class="admin-mission-dollar ${$===10?'dollar-low':$===20?'dollar-mid':'dollar-high'}">+${$}$</span>
+              ${isFinal?'<span class="finale-badge">FINALE</span>':''}
+            </div>
+            <textarea class="admin-textarea" id="admin-${mk}" maxlength="500"
+              placeholder="${DEFAULT_MISSIONS[mk]}"
+              oninput="document.getElementById('count-${mk}').textContent=this.value.length+'/500'"
+            >${missionNames[mk]||DEFAULT_MISSIONS[mk]}</textarea>
+            <div class="char-count" id="count-${mk}">${(missionNames[mk]||DEFAULT_MISSIONS[mk]).length}/500</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="btn-save" onclick="window._saveMissions()">💾 Enregistrer les missions</button>
+    </div>`;
+  }
+ 
+  function renderBoutiquePage(){
+    return `
+    <div class="app-container">
+      <header class="app-header">
+        <button class="icon-btn" onclick="window._back()">← Retour</button>
+        <h2 class="header-title">🎁 Gestion Boutique</h2>
+        <div></div>
+      </header>
+
+      <div class="admin-new-user" style="margin-bottom: 24px;">
+        <div class="section-title">➕ Ajouter un article</div>
+        <div class="form-group">
+          <label>Nom de l'article</label>
+          <input type="text" id="gift-name" class="bonus-input" placeholder="ex: Gourde Métal"/>
+        </div>
+        <div class="form-group">
+          <label>Prix ($)</label>
+          <input type="number" id="gift-price" class="bonus-input" placeholder="ex: 80" min="1"/>
+        </div>
+        <div class="form-group">
+          <label>Stock</label>
+          <input type="number" id="gift-stock" class="bonus-input" placeholder="ex: 15" min="0"/>
+        </div>
+        <button class="btn-save" onclick="window._addGift()">Créer l'article</button>
+      </div>
+
+      <div class="section-title">📦 Liste des articles & Stocks</div>
+      <div class="admin-missions" style="margin-top: 8px;">
+        ${gifts.length === 0 ? `<div class="empty-state">Aucun article trouvé</div>` : ''}
+        ${gifts.map(g => {
+          return `
+          <div class="admin-mission-item" style="display: flex; flex-direction: column; gap: var(--space-xs); padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <span style="font-weight: 700; font-size: 1.1rem;">
+                ${g.nom}
+              </span>
+              <span class="badge badge--price" style="background: var(--surface2); color: var(--gold); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-weight: bold;">
+                ${g.prix} $
+              </span>
+            </div>
+            
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: var(--space-xs); width: 100%;">
+              <div class="form-group" style="flex: 1; margin: 0;">
+                <label style="font-size: 0.8rem; opacity: 0.75; margin-bottom: 4px;">Stock actuel</label>
+                <input type="number" id="stock-${g.id}" class="bonus-input" value="${g.stock}" min="0" style="padding: 6px var(--space-xs);"/>
+              </div>
+              <div class="form-group" style="flex: 1; margin: 0;">
+                <label style="font-size: 0.8rem; opacity: 0.75; margin-bottom: 4px;">Prix ($)</label>
+                <input type="number" id="price-${g.id}" class="bonus-input" value="${g.prix}" min="1" style="padding: 6px var(--space-xs);"/>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-xs); margin-top: var(--space-xs); width: 100%;">
+              <button class="btn-save" onclick="window._updateGift(${g.id})" style="flex: 2; margin: 0; padding: var(--space-xs) var(--space-sm); font-size: 0.9rem;">
+                💾 Mettre à jour
+              </button>
+              <button class="btn-bonus remove" onclick="window._deleteGift(${g.id})" style="flex: 1; margin: 0; padding: var(--space-xs) var(--space-sm); font-size: 0.9rem; border-radius: var(--radius); border: none;">
+                🗑️ Supprimer
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+ 
+  // ===================== EVENTS =====================
+  function attachEvents(){
+    // search keydown for add child
+    const si = document.getElementById('login-email');
+    if(si) si.focus();
+
+    // Preserve focus and cursor position on search input during live typing
+    const searchInput = document.querySelector('.search-input');
+    if(searchInput) {
+      searchInput.focus();
+      const len = searchInput.value.length;
+      searchInput.setSelectionRange(len, len);
+    }
+  }
+ 
+  window._search = function(v){ window._searchQ=v; renderApp(); };
+  window._back = function(){ currentPage='list'; renderApp(); };
+  window._logout = function(){
+    currentUser = null;
+    currentClub = null;
+    isAdmin = false;
+    localStorage.removeItem('adminUser');
+    renderLogin();
+  };
+  window._goAdmin = function(){ currentPage='admin'; renderApp(); };
+  window._goBoutiqueManagement = async function(){
+    currentPage = 'boutique';
+    await fetchGiftsFromDb();
+    renderApp();
+  };
+
+  window._addGift = async function(){
+    const nom = document.getElementById('gift-name').value.trim();
+    const prix = parseInt(document.getElementById('gift-price').value);
+    const stock = parseInt(document.getElementById('gift-stock').value);
+
+    if(!nom || isNaN(prix) || isNaN(stock)) {
+      alert("Veuillez remplir tous les champs");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom, prix, stock })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert("Erreur: " + data.message);
+      } else {
+        alert("Article ajouté avec succès !");
+        document.getElementById('gift-name').value = '';
+        document.getElementById('gift-price').value = '';
+        document.getElementById('gift-stock').value = '';
+        await fetchGiftsFromDb();
+      }
+    } catch(err) {
+      alert("Erreur réseau : " + err.message);
+    }
+  };
+
+  window._updateGift = async function(id){
+    const stock = parseInt(document.getElementById(`stock-${id}`).value);
+    const prix = parseInt(document.getElementById(`price-${id}`).value);
+    
+    const gift = gifts.find(g => g.id === id);
+    if (!gift) return;
+
+    if (isNaN(stock) || isNaN(prix)) {
+      alert("Valeurs incorrectes");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: gift.nom, prix, stock })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert("Erreur: " + data.message);
+      } else {
+        alert("Article mis à jour !");
+        await fetchGiftsFromDb();
+      }
+    } catch(err) {
+      alert("Erreur réseau : " + err.message);
+    }
+  };
+
+  window._deleteGift = async function(id){
+    if(!confirm("Supprimer cet article définitivement ?")) return;
+
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert("Erreur: " + data.message);
+      } else {
+        alert("Article supprimé !");
+        await fetchGiftsFromDb();
+      }
+    } catch(err) {
+      alert("Erreur réseau : " + err.message);
+    }
+  };
+ 
+  window._openChild = function(id){
+    currentChildId=id;
+    currentPage='child';
+    renderApp();
+  };
+ 
+  window._addChild = async function(){
+    const uid = prompt("UID de la carte NFC (ex: 12345678) :");
+    if(!uid || !uid.trim()) return;
+    const prenom = prompt("Prénom de l'enfant (ex: Levi) :");
+    if(!prenom || !prenom.trim()) return;
+    const nom = prompt("Nom de l'enfant (ex: Cohen) :");
+    if(!nom || !nom.trim()) return;
+    
+    let camp = currentClub;
+    if (isAdmin) {
+      camp = prompt("Camp de l'enfant (ex: Camp Alpha, Camp Beta, Camp Gamma) :");
+      if (!camp || !camp.trim()) return;
+      camp = camp.trim();
+    }
+    
+    const data = {
+      uid: uid.trim(),
+      prenom: prenom.trim(),
+      nom: nom.trim(),
+      solde: 0,
+      dollars: 0,
+      camp: camp,
+      admin_data: JSON.stringify({
+        missions: {},
+        bonusHistory: [],
+        lastActivity: Date.now()
+      })
+    };
+    
+    try {
+      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        alert("Erreur: " + (resData.message || "Impossible de créer l'enfant"));
+      } else {
+        alert("Enfant créé avec succès !");
+        await fetchChildrenFromDb();
+      }
+    } catch(err) {
+      alert("Erreur de connexion : " + err.message);
+    }
+  };
+ 
+  window._toggleMission = async function(mk){
+    if(!currentChildId) return;
+    await toggleMission(currentChildId, mk);
+  };
+ 
+  window._applyBonus = async function(isRemove){
+    const inputId = isRemove?'bonus-remove':'bonus-add';
+    const val = parseInt(document.getElementById(inputId).value)||0;
+    if(val<=0) return;
+    await addBonusPoints(currentChildId, val, isRemove);
+    document.getElementById(inputId).value='';
+  };
+ 
+  window._resetMissions = async function(){
+    if(!confirm("Réinitialiser les missions du jour pour ce soldat ?")) return;
+    await resetChildMissions(currentChildId);
+  };
+ 
+  window._confirmDelete = function(id){
+    const child = children[id];
+    if(!child) return;
+    if(!confirm(`Supprimer ${child.name} définitivement ?`)) return;
+    deleteChild(id);
+    currentPage='list';
+    renderApp();
+  };
+ 
+  window._saveMissions = async function(){
+    const mKeys = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13'];
+    mKeys.forEach(mk=>{
+      const el = document.getElementById('admin-'+mk);
+      if(el) missionNames[mk] = el.value||DEFAULT_MISSIONS[mk];
+    });
+    await saveMissions();
+    alert("Missions enregistrées !");
+  };
+ 
+  // Vue admin / superadmin methods removed.
+ 
+  function showError(msg){
+    document.getElementById('app').innerHTML=`<div style="color:red;padding:20px">${msg}</div>`;
+  }
+</script>
+ 
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+ 
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#0f1623;
+    --surface:#1a2744;
+    --surface2:#223059;
+    --gold:#d4a017;
+    --gold2:#f0c040;
+    --green:#22c55e;
+    --red:#ef4444;
+    --amber:#f59e0b;
+    --text:#f0f4ff;
+    --text2:#94a3b8;
+    --border:#2d3e66;
+    --radius:12px;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+  #app{min-height:100vh;}
+ 
+  /* LOGIN */
+  .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#0a0f1e 0%,#1a2744 50%,#0f1623 100%);
+    padding:20px;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:40px 32px;width:100%;max-width:380px;box-shadow:0 25px 60px rgba(0,0,0,0.5);}
+  .login-logo{text-align:center;margin-bottom:32px;}
+  .logo-text{font-size:64px;margin-bottom:8px;}
+  .login-logo h1{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;
+    color:var(--gold);letter-spacing:1px;}
+  .login-logo p{color:var(--text2);font-size:14px;margin-top:4px;}
+  .login-error{background:#7f1d1d;border:1px solid #ef4444;color:#fca5a5;
+    padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);
+    text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  .form-group input,.form-group select{width:100%;background:var(--bg);border:1px solid var(--border);
+    color:var(--text);border-radius:8px;padding:12px 14px;font-size:15px;outline:none;
+    font-family:'Inter',sans-serif;}
+  .form-group input:focus,.form-group select:focus{border-color:var(--gold);}
+  .btn-login{width:100%;background:linear-gradient(135deg,var(--gold),var(--gold2));
+    color:#0a0f1e;border:none;border-radius:10px;padding:14px;font-size:16px;
+    font-weight:700;cursor:pointer;display:flex;justify-content:space-between;
+    align-items:center;font-family:'Oswald',sans-serif;letter-spacing:0.5px;
+    margin-top:8px;transition:opacity 0.2s;}
+  .btn-login:hover{opacity:0.9;}
+ 
+  /* APP */
+  .app-container{max-width:640px;margin:0 auto;padding-bottom:40px;}
+  .app-header{display:flex;align-items:center;justify-content:space-between;
+    padding:16px;background:var(--surface);border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:10;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .header-logo{font-size:28px;}
+  .header-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--gold);}
+  .header-sub{font-size:11px;color:var(--text2);}
+  .header-actions{display:flex;gap:6px;}
+  .icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px;
+    transition:all 0.2s;white-space:nowrap;}
+  .icon-btn:hover{background:var(--border);}
+  .icon-btn.danger{color:var(--red);border-color:var(--red);}
+ 
+  .search-add-bar{display:flex;gap:10px;padding:16px;}
+  .search-input{flex:1;background:var(--surface);border:1px solid var(--border);
+    color:var(--text);border-radius:10px;padding:10px 14px;font-size:15px;
+    outline:none;font-family:'Inter',sans-serif;}
+  .search-input:focus{border-color:var(--gold);}
+  .btn-add{background:var(--gold);color:#0a0f1e;border:none;border-radius:10px;
+    padding:10px 16px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:14px;}
+ 
+  .stats-banner{display:flex;gap:0;background:var(--surface);
+    border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:16px;}
+  .stat-item{flex:1;text-align:center;padding:12px 8px;border-right:1px solid var(--border);}
+  .stat-item:last-child{border-right:none;}
+  .stat-val{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--gold);}
+  .stat-lbl{display:block;font-size:11px;color:var(--text2);text-transform:uppercase;}
+ 
+  .children-grid{display:flex;flex-direction:column;gap:10px;padding:0 16px;}
+  .empty-state{text-align:center;color:var(--text2);padding:40px;font-size:15px;line-height:2;}
+ 
+  .child-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px;cursor:pointer;transition:all 0.2s;position:relative;
+    border-left:4px solid var(--gold);}
+  .child-card:hover{background:var(--surface2);transform:translateY(-1px);}
+  .card-rank{position:absolute;top:10px;right:12px;font-size:11px;color:var(--text2);font-weight:600;}
+  .card-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .card-avatar{font-size:28px;width:44px;text-align:center;}
+  .card-info{flex:1;}
+  .card-name{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;}
+  .card-grade{font-size:12px;font-weight:600;margin-top:2px;}
+  .card-pts{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--gold);text-align:right;}
+  .card-pts small{font-size:11px;font-weight:400;color:var(--text2);display:block;}
+  .progress-bar-wrap{background:#0a0f1e;border-radius:99px;height:6px;overflow:hidden;margin-bottom:8px;}
+  .progress-bar-fill{height:100%;border-radius:99px;transition:width 0.5s ease;}
+  .card-footer{display:flex;gap:12px;font-size:12px;color:var(--text2);}
+ 
+  /* CHILD PAGE */
+  .child-hero{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:24px 16px;text-align:center;}
+  .hero-avatar{font-size:56px;margin-bottom:8px;}
+  .hero-grade{font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;
+    color:var(--gold);letter-spacing:1px;}
+  .hero-pts{font-family:'Oswald',sans-serif;font-size:40px;font-weight:700;color:var(--gold);}
+  .hero-progress{margin:12px 0;}
+  .hero-next{font-size:13px;color:var(--text2);margin-bottom:12px;}
+  .hero-stats{display:flex;justify-content:center;gap:24px;}
+  .hstat{font-size:15px;font-weight:600;}
+ 
+  .section-title{font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;
+    text-transform:uppercase;letter-spacing:1px;color:var(--text2);
+    padding:14px 16px 8px;}
+  .missions-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+  .mission-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;
+    transition:all 0.15s;}
+  .mission-row:hover{background:var(--surface2);}
+  .mission-row.mission-done{background:#0f2a1a;border-color:#22c55e44;}
+  .mission-check{font-size:20px;flex-shrink:0;margin-top:1px;}
+  .mission-text{flex:1;}
+  .mission-name{font-size:14px;line-height:1.4;word-break:break-word;}
+  .finale-badge{display:inline-block;background:#7f1d1d;color:#fca5a5;
+    font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;
+    text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;}
+  .mission-dollar{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;
+    flex-shrink:0;padding:2px 8px;border-radius:6px;}
+  .dollar-low{background:#064e3b;color:#34d399;}
+  .dollar-mid{background:#78350f;color:#fcd34d;}
+  .dollar-high{background:#7f1d1d;color:#fca5a5;}
+ 
+  .bonus-area{padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .bonus-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;}
+  .bonus-label{font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2);}
+  .bonus-row{display:flex;gap:8px;}
+  .bonus-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-size:14px;outline:none;min-width:0;
+    font-family:'Inter',sans-serif;}
+  .bonus-input:focus{border-color:var(--gold);}
+  .btn-bonus{padding:8px 12px;border:none;border-radius:8px;font-weight:700;
+    cursor:pointer;font-size:13px;white-space:nowrap;}
+  .btn-bonus.add{background:#064e3b;color:#34d399;}
+  .btn-bonus.remove{background:#7f1d1d;color:#fca5a5;}
+ 
+  .reset-area{padding:16px;}
+  .btn-reset{width:100%;background:var(--surface2);border:1px solid var(--border);
+    color:var(--text2);border-radius:10px;padding:12px;font-size:14px;cursor:pointer;}
+ 
+  /* ADMIN */
+  .admin-intro{padding:12px 16px;font-size:13px;color:var(--text2);
+    background:var(--surface);border-bottom:1px solid var(--border);}
+  .admin-missions{padding:16px;display:flex;flex-direction:column;gap:12px;}
+  .admin-mission-item{background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:12px;}
+  .admin-mission-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .admin-mission-key{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;}
+  .admin-mission-dollar{font-size:13px;font-weight:700;padding:2px 8px;border-radius:4px;}
+  .admin-textarea{width:100%;background:var(--bg);border:1px solid var(--border);
+    color:var(--text);border-radius:8px;padding:10px;font-size:13px;
+    min-height:70px;resize:vertical;font-family:'Inter',sans-serif;outline:none;line-height:1.4;}
+  .admin-textarea:focus{border-color:var(--gold);}
+  .char-count{font-size:11px;color:var(--text2);text-align:right;margin-top:4px;}
+  .btn-save{display:block;width:calc(100% - 32px);margin:0 16px 24px;
+    background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0a0f1e;
+    border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;
+    cursor:pointer;font-family:'Oswald',sans-serif;}
+ 
+  /* SUPER ADMIN */
+  .club-section{margin:16px;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;}
+  .club-header{display:flex;justify-content:space-between;align-items:center;
+    padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+  .club-header h3{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;}
+  .club-header span{font-size:12px;color:var(--text2);}
+  .club-children{padding:0;}
+  .club-child-row{display:flex;justify-content:space-between;align-items:center;
+    padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;}
+  .club-child-row:last-child{border-bottom:none;}
+  .club-manage-btn{padding:10px 16px;border-top:1px solid var(--border);}
+  .btn-sm{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;}
+  .admin-new-club,.admin-new-user{margin:16px;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;padding:16px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px">
+    <img src="/logo.png" style="width:80px;height:80px;object-fit:contain;border-radius:12px;"/>
+    <div style="color:#d4a017;font-family:Oswald,sans-serif;font-size:20px">Chargement...</div>
+  </div>
+</div>
+</body>
+</html>

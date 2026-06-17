@@ -2,7 +2,21 @@ import React, { useState, useEffect } from 'react';
 import useNfcScanner from '../hooks/useNfcScanner';
 import { getCadeaux, effectuerAchat } from '../api';
 
-// Mode Demo désactivé
+// Comptes de test (correspondant à init.sql)
+const DEMO_ACCOUNTS = [
+    { uid: '12345678', label: '🧒 Levi Cohen' },
+    { uid: '87654321', label: '👧 Sarah Levy' },
+];
+
+// Données démo si le backend n'est pas connecté
+const DEMO_CADEAUX = [
+    { id: 1, nom: 'Porte-clé Gan', prix: 20, stock: 50 },
+    { id: 2, nom: 'Casquette Camp', prix: 50, stock: 20 },
+    { id: 3, nom: 'T-shirt Gan Israël', prix: 100, stock: 10 },
+    { id: 4, nom: 'Gourde Métal', prix: 80, stock: 15 },
+    { id: 5, nom: 'Peluche Lion', prix: 120, stock: 8 },
+    { id: 6, nom: 'Bracelet Gan', prix: 15, stock: 100 },
+];
 
 // Emojis pour les cadeaux basés sur le nom
 const giftEmojiMap = {
@@ -47,10 +61,10 @@ const Boutique = () => {
             const res = await getCadeaux();
             const dataToUse = res.data || [];
             const sortedData = [...dataToUse].sort((a, b) => a.prix - b.prix);
-            setCadeaux(sortedData);
+            setCadeaux(sortedData.length > 0 ? sortedData : DEMO_CADEAUX);
         } catch (err) {
-            console.error('Erreur de chargement des cadeaux', err);
-            setCadeaux([]);
+            console.warn('Backend non disponible — mode démo activé');
+            setCadeaux(DEMO_CADEAUX);
         }
     };
 
@@ -87,7 +101,7 @@ const Boutique = () => {
         try {
             const res = await effectuerAchat({ uid, panier });
             setStatus({
-                message: `🎉 Achat réussi ! Nouveau solde : ${res.data.nouveauSolde} pts`,
+                message: `🎉 Achat réussi ! Nouveau solde : ${res.data.nouveauSolde} $`,
                 type: 'success',
             });
             triggerConfetti();
@@ -139,8 +153,8 @@ const Boutique = () => {
                 </div>
             )}
 
-            <h1 className="boutique-page__title">🎁 Boutique du Gan</h1>
-            <p className="boutique-page__subtitle">Échange tes points contre des cadeaux !</p>
+            <h1 className="boutique-page__title">🎁 COLOBAR</h1>
+            <p className="boutique-page__subtitle">Échange tes dollars contre des cadeaux !</p>
 
 
             {/* Toast notification */}
@@ -182,7 +196,7 @@ const Boutique = () => {
                                         </span>
                                         <div className="cart-item__right">
                                             <span className="cart-item__price">
-                                                {item.prix} pts
+                                                {item.prix} $
                                             </span>
                                             <button
                                                 className="cart-item__remove"
@@ -202,7 +216,7 @@ const Boutique = () => {
                         <div className="cart__side-panel">
                             <div className="cart__total">
                                 <span className="cart__total-label">Total</span>
-                                <span className="cart__total-value">{total} pts</span>
+                                <span className="cart__total-value">{total} $</span>
                             </div>
 
                             <button
@@ -226,7 +240,7 @@ const Boutique = () => {
                                 onClick={() => addToCart(c)}
                                 role="button"
                                 tabIndex={0}
-                                aria-label={`Ajouter ${c.nom} au panier — ${c.prix} points`}
+                                aria-label={`Ajouter ${c.nom} au panier — ${c.prix} dollars`}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') addToCart(c);
                                 }}
@@ -255,7 +269,7 @@ const Boutique = () => {
                                             : 'Rupture de stock'}
                                     </p>
                                 )}
-                                <span className="badge badge--price">{c.prix} pts</span>
+                                <span className="badge badge--price">{c.prix} $</span>
                             </div>
                         );
                     })}
@@ -278,7 +292,7 @@ const Boutique = () => {
                                     <div className="nfc-reader__scanline" />
                                     <div className="nfc-reader__status-dot" />
                                     <span style={{ letterSpacing: '0.5px', fontWeight: '800' }}>PAIEMENT NFC</span>
-                                    <span style={{ fontSize: '0.6rem', color: '#34d399', fontWeight: '800' }}>TOTAL: {total} PTS</span>
+                                    <span style={{ fontSize: '0.6rem', color: '#34d399', fontWeight: '800' }}>TOTAL: {total} $</span>
                                 </div>
                                 <div className="nfc-reader__zone" aria-hidden="true">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
@@ -295,10 +309,24 @@ const Boutique = () => {
                             Pose ta carte sur le lecteur
                         </h2>
                         <p className="payment-card__subtext">
-                            Pour payer {total} pts
+                            Pour payer {total} $
                         </p>
 
-                        {/* Console administrative retirée */}
+                        {/* Console administrative de simulation */}
+                        <div className="demo-bar demo-bar--compact" style={{ marginTop: 'var(--space-md)' }}>
+                            <p className="demo-bar__label">🔧 Mode Démo — Simuler Paiement :</p>
+                            <div className="demo-bar__buttons">
+                                {DEMO_ACCOUNTS.map((account) => (
+                                    <button
+                                        key={account.uid}
+                                        className="demo-bar__btn"
+                                        onClick={() => handleScan(account.uid)}
+                                    >
+                                        {account.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         <button
                             className="btn btn--ghost"
