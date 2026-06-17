@@ -1072,14 +1072,18 @@ h3, h4, h5, h6 {
   text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
 }
 
-/* Split-layout only on tablet landscape screen sizes (not on PC/desktop >= 1200px) */
-@media (min-width: 850px) and (max-width: 1199px) {
+/* Split-layout on tablet landscape and PC/desktop screen sizes (>= 850px) */
+@media (min-width: 850px) {
+  .scan-waiting {
+    margin-top: -35px;
+  }
+
   .scan-waiting__container {
     flex-direction: row;
     justify-content: center;
     align-items: stretch;
     gap: var(--space-xl);
-    max-width: 1040px;
+    max-width: 1200px;
     width: 100%;
   }
 
@@ -1090,20 +1094,33 @@ h3, h4, h5, h6 {
     justify-content: center;
     align-items: center;
     margin-bottom: 0;
+    padding: 0 var(--space-md);
   }
 
   .scan-waiting__left {
     flex: 1.2;
     border-right: 1.5px solid rgba(255, 255, 255, 0.1);
     border-left: 1.5px solid rgba(255, 255, 255, 0.1);
-    padding: 0 var(--space-2xl);
+    padding: 0 var(--space-xl);
     align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .scan-waiting__right {
     flex: 0.9;
-    padding-left: var(--space-2xl);
+    padding: 0 var(--space-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
+  }
+
+  .scan-waiting__inspiration {
+    margin-top: 0;
+    width: 100%;
+    max-width: 380px;
   }
 }
 

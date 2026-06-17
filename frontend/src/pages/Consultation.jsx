@@ -3,11 +3,6 @@ import { useOutletContext } from 'react-router-dom';
 import useNfcScanner from '../hooks/useNfcScanner';
 import { getEnfant, getLeaderboard } from '../api';
 
-// Comptes de test (correspondant à init.sql)
-const DEMO_ACCOUNTS = [
-    { uid: '12345678', label: '🧒 Levi Cohen' },
-    { uid: '87654321', label: '👧 Sarah Levy' },
-];
 
 // Hook pour animer un compteur de 0 à la valeur cible
 const useCountUp = (target, duration = 1500) => {
@@ -312,33 +307,31 @@ const Consultation = () => {
                         <div className="scan-waiting__right">
                             {/* Slogan & Pensée du Rabbi */}
                             <div className="scan-waiting__inspiration">
-                                <p className="scan-waiting__slogan">En fonction de l'effort la récompense  ✨</p>
-                                <div className="scan-waiting__quote-box">
-                                    <span className="quote-icon" aria-hidden="true">❝</span>
-                                    <p className="quote-text">
-                                        En fonction de l'effort la récompense.
-                                    </p>
-                                    <p className="quote-author">— Gan Israel</p>
+                                <div className="leaderboard-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                                    <div className="scan-waiting__quote-badge" style={{ 
+                                        fontSize: '2.5rem', 
+                                        marginBottom: 'var(--space-xs)',
+                                        animation: 'gentleFloat 5s ease-in-out infinite',
+                                        filter: 'drop-shadow(0 4px 10px rgba(244, 180, 0, 0.35))'
+                                    }}>
+                                        📜
+                                    </div>
+                                    <h2 className="leaderboard-title" style={{ margin: '0 0 var(--space-lg) 0' }}>
+                                        ✨ Devise du Gan
+                                    </h2>
+                                    <div style={{ position: 'relative', width: '100%', padding: '0 var(--space-sm)' }}>
+                                        <span className="quote-icon" aria-hidden="true" style={{ top: '-20px', left: '-5px', fontSize: '3rem' }}>❝</span>
+                                        <p className="quote-text" style={{ fontSize: '1.2rem', marginBottom: 'var(--space-md)' }}>
+                                            En fonction de l'effort la récompense.
+                                        </p>
+                                        <p className="quote-author" style={{ textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '1px' }}>— Gan Israel</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Console administrative de simulation */}
-                    <div className="demo-bar">
-                        <p className="demo-bar__label">🔧 Console d'Administration — Simuler Scan :</p>
-                        <div className="demo-bar__buttons">
-                            {DEMO_ACCOUNTS.map((account) => (
-                                <button
-                                    key={account.uid}
-                                    className="demo-bar__btn"
-                                    onClick={() => handleScan(account.uid)}
-                                >
-                                    {account.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+
                 </div>
             )}
 

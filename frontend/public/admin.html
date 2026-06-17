@@ -245,19 +245,28 @@
     }
   }
  
-  function checkDollarReset(child){
+  function checkMissionReset(child){
     const now = Date.now();
     const last = child.lastActivity||0;
-    if(now-last > 12*60*60*1000){
-      child.dollars = 0;
-      child.missions = {};
+    if (last > 0) {
+      const dateNow = new Date(now);
+      const dateLast = new Date(last);
+      const isDifferentDay = dateNow.getFullYear() !== dateLast.getFullYear() ||
+                             dateNow.getMonth() !== dateLast.getMonth() ||
+                             dateNow.getDate() !== dateLast.getDate();
+      if (isDifferentDay) {
+        child.missions = {};
+        child.lastActivity = now;
+      }
+    } else {
+      child.lastActivity = now;
     }
     return child;
   }
  
   async function toggleMission(childId, mKey){
     let child = {...children[childId]};
-    child = checkDollarReset(child);
+    child = checkMissionReset(child);
     const done = child.missions[mKey]||false;
     if(done){
       child.missions[mKey]=false;
@@ -285,7 +294,6 @@
   async function resetChildMissions(childId){
     let child = {...children[childId]};
     child.missions = {};
-    child.dollars = 0;
     child.lastActivity = Date.now();
     await saveChild(childId, child);
   }
@@ -347,6 +355,10 @@
   };
  
   function renderApp(){
+    if(window.countdownInterval) {
+      clearInterval(window.countdownInterval);
+      window.countdownInterval = null;
+    }
     const app = document.getElementById('app');
     if(currentPage==='list') app.innerHTML = renderListPage();
     else if(currentPage==='child') app.innerHTML = renderChildPage();
@@ -372,6 +384,7 @@
           </div>
         </div>
         <div class="header-actions">
+          <button class="icon-btn" onclick="window.parent.location.href = '/'" title="Retour au Kiosque">🏠</button>
           <button class="icon-btn" onclick="window._goBoutiqueManagement()" title="Gérer la boutique">🎁</button>
           <button class="icon-btn" onclick="window._goAdmin()" title="Paramètres missions">⚙️</button>
           <button class="icon-btn" onclick="window._logout()" title="Déconnexion">🚪</button>
@@ -465,7 +478,10 @@
         </div>
       </div>
  
-      <div class="section-title">Missions du jour</div>
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Missions du jour</span>
+        <span id="reset-countdown" class="reset-countdown">Réinitialisation dans --:--:--</span>
+      </div>
       <div class="missions-list">
         ${missionKeys.map(mk=>{
           const done = missions[mk]||false;
@@ -620,6 +636,32 @@
       const len = searchInput.value.length;
       searchInput.setSelectionRange(len, len);
     }
+
+    // Handle daily mission reset countdown
+    const countdownEl = document.getElementById('reset-countdown');
+    if (countdownEl) {
+      const now = new Date();
+      let targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+      
+      function updateTimer() {
+        const currentDate = new Date();
+        let diffMs = targetMidnight - currentDate;
+        
+        if (diffMs <= 0) {
+          countdownEl.textContent = "Réinitialisation...";
+          targetMidnight = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 0, 0, 0, 0);
+          setTimeout(() => { fetchChildrenFromDb(); }, 1000);
+          return;
+        }
+        
+        const hours = String(Math.floor(diffMs / (60 * 60 * 1000))).padStart(2, '0');
+        const minutes = String(Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))).padStart(2, '0');
+        const seconds = String(Math.floor((diffMs % (60 * 1000)) / 1000)).padStart(2, '0');
+        countdownEl.textContent = `Réinitialisation dans ${hours}:${minutes}:${seconds}`;
+      }
+      updateTimer();
+      window.countdownInterval = setInterval(updateTimer, 1000);
+    }
   }
  
   window._search = function(v){ window._searchQ=v; renderApp(); };
@@ -718,10 +760,35 @@
     }
   };
  
-  window._openChild = function(id){
+  window._openChild = async function(id){
     currentChildId=id;
     currentPage='child';
-    renderApp();
+    
+    let child = {...children[id]};
+    if (child) {
+      const last = child.lastActivity || 0;
+      const now = Date.now();
+      const dateNow = new Date(now);
+      const dateLast = new Date(last);
+      const isDifferent = last > 0 && (
+        dateNow.getFullYear() !== dateLast.getFullYear() ||
+        dateNow.getMonth() !== dateLast.getMonth() ||
+        dateNow.getDate() !== dateLast.getDate()
+      );
+      
+      if (isDifferent) {
+        child.missions = {};
+        child.lastActivity = now;
+        await saveChild(id, child);
+      } else if (last === 0) {
+        child.lastActivity = now;
+        await saveChild(id, child);
+      } else {
+        renderApp();
+      }
+    } else {
+      renderApp();
+    }
   };
  
   window._addChild = async function(){
@@ -962,6 +1029,9 @@
   .reset-area{padding:16px;}
   .btn-reset{width:100%;background:var(--surface2);border:1px solid var(--border);
     color:var(--text2);border-radius:10px;padding:12px;font-size:14px;cursor:pointer;}
+  .reset-countdown{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text2);
+    background:rgba(255,255,255,0.04);padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+    text-transform:none;letter-spacing:0;}
  
   /* ADMIN */
   .admin-intro{padding:12px 16px;font-size:13px;color:var(--text2);

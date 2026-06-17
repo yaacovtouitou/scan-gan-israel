@@ -2,11 +2,6 @@ import React, { useState, useEffect } from 'react';
 import useNfcScanner from '../hooks/useNfcScanner';
 import { getCadeaux, effectuerAchat } from '../api';
 
-// Comptes de test (correspondant à init.sql)
-const DEMO_ACCOUNTS = [
-    { uid: '12345678', label: '🧒 Levi Cohen' },
-    { uid: '87654321', label: '👧 Sarah Levy' },
-];
 
 // Données démo si le backend n'est pas connecté
 const DEMO_CADEAUX = [
@@ -312,21 +307,7 @@ const Boutique = () => {
                             Pour payer {total} $
                         </p>
 
-                        {/* Console administrative de simulation */}
-                        <div className="demo-bar demo-bar--compact" style={{ marginTop: 'var(--space-md)' }}>
-                            <p className="demo-bar__label">🔧 Mode Démo — Simuler Paiement :</p>
-                            <div className="demo-bar__buttons">
-                                {DEMO_ACCOUNTS.map((account) => (
-                                    <button
-                                        key={account.uid}
-                                        className="demo-bar__btn"
-                                        onClick={() => handleScan(account.uid)}
-                                    >
-                                        {account.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+
 
                         <button
                             className="btn btn--ghost"

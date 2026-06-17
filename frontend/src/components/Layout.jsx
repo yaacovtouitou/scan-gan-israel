@@ -174,11 +174,25 @@ const Layout = () => {
             </main>
 
             {/* Footer */}
-            <footer className="app-footer">
+            <footer className="app-footer" style={{ marginBottom: 'var(--nav-height)' }}>
                 <p className="app-footer__text">
                     © {new Date().getFullYear()} Tout droits réservé — Développé par <span className="app-footer__highlight">Club Ados Sarcelles Villages</span>
                 </p>
             </footer>
+
+            {/* Bottom Navigation */}
+            <nav className="bottom-nav">
+                {navItems.map((item) => (
+                    <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
+                    >
+                        <span className="nav-item__icon" aria-hidden="true">{item.icon}</span>
+                        <span className="nav-item__label">{item.label}</span>
+                    </NavLink>
+                ))}
+            </nav>
 
         </div>
     );
