@@ -21,32 +21,32 @@ db.connect(err => {
     }
     console.log('Connecté à la base de données MySQL.');
 
-    // S'assurer que les tables administrateurs et camp_config existent
-    const createAdminsTable = `
-        CREATE TABLE IF NOT EXISTS administrateurs (
+    // S'assurer que les tables users et camp_config existent
+    const createUsersTable = `
+        CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(100) UNIQUE NOT NULL,
-            mot_de_passe VARCHAR(255) NOT NULL,
-            camp VARCHAR(100) DEFAULT NULL
+            password VARCHAR(255) NOT NULL,
+            role VARCHAR(50) DEFAULT 'animateur',
+            club VARCHAR(100) DEFAULT NULL
         );
     `;
-    db.query(createAdminsTable, (err) => {
-        if (err) console.error('Erreur création table administrateurs:', err);
+    db.query(createUsersTable, (err) => {
+        if (err) console.error('Erreur création table users:', err);
         else {
-            // Insertion des utilisateurs de test si la table est vide
-            db.query('SELECT COUNT(*) as count FROM administrateurs', (err, results) => {
-                if (!err && results[0].count === 0) {
-                    db.query(`
-                        INSERT INTO administrateurs (username, mot_de_passe, camp) VALUES 
-                        ('admin', 'admin', 'all'),
-                        ('admin_alpha', 'password123', 'Camp Alpha'),
-                        ('admin_beta', 'password123', 'Camp Beta'),
-                        ('admin_gamma', 'password123', 'Camp Gamma')
-                    `, (err) => {
-                        if (err) console.error('Erreur insertion administrateurs de test:', err);
-                        else console.log('Administrateurs de test insérés avec succès.');
-                    });
-                }
+            // Insertion des utilisateurs de test (INSERT IGNORE pour s'assurer que tous les comptes par défaut sont présents)
+            db.query(`
+                INSERT IGNORE INTO users (username, password, role, club) VALUES 
+                ('admin', 'admin', 'admin', 'sarcelles'),
+                ('alpha', 'alpha', 'animateur', 'Camp Alpha'),
+                ('beta', 'beta', 'animateur', 'Camp Beta'),
+                ('gamma', 'gamma', 'animateur', 'Camp Gamma'),
+                ('admin_alpha', 'password123', 'animateur', 'Camp Alpha'),
+                ('admin_beta', 'password123', 'animateur', 'Camp Beta'),
+                ('admin_gamma', 'password123', 'animateur', 'Camp Gamma')
+            `, (err) => {
+                if (err) console.error('Erreur insertion utilisateurs de test:', err);
+                else console.log('Utilisateurs de test insérés ou déjà existants.');
             });
         }
     });

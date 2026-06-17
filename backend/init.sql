@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS enfants (
     prenom VARCHAR(100) NOT NULL,
     solde INT DEFAULT 0,
     dollars INT DEFAULT 0,
+    camp VARCHAR(100) DEFAULT NULL,
     admin_data TEXT DEFAULT NULL,
     last_scan TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -31,21 +32,31 @@ CREATE TABLE IF NOT EXISTS historique (
 );
 
 -- Insertion de données de test
-INSERT INTO enfants (uid, nom, prenom, solde, dollars) VALUES 
-('12345678', 'Cohen', 'Levi', 100, 50),
-('87654321', 'Levy', 'Sarah', 50, 25);
+INSERT INTO enfants (uid, nom, prenom, solde, dollars, camp) VALUES 
+('12345678', 'Cohen', 'Levi', 100, 50, 'Camp Alpha'),
+('87654321', 'Levy', 'Sarah', 50, 25, 'Camp Beta');
 
 INSERT INTO cadeaux (nom, prix, stock) VALUES 
 ('Porte-clé', 20, 50),
 ('Casquette', 50, 20),
 ('T-shirt', 100, 10);
 
--- Table des administrateurs / animateurs
+-- Table des administrateurs / animateurs (historique)
 CREATE TABLE IF NOT EXISTS administrateurs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     mot_de_passe VARCHAR(255) NOT NULL,
     camp VARCHAR(100) DEFAULT NULL
+);
+
+-- Table des utilisateurs pour la connexion admin/animateur
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'animateur',
+    club VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Table de configuration des missions par camp
@@ -54,10 +65,19 @@ CREATE TABLE IF NOT EXISTS camp_config (
     missions TEXT NOT NULL
 );
 
--- Insertion des administrateurs par défaut
+-- Insertion des administrateurs par défaut (historique)
 INSERT IGNORE INTO administrateurs (username, mot_de_passe, camp) VALUES 
 ('admin', 'admin', 'all'),
 ('admin_alpha', 'password123', 'Camp Alpha'),
 ('admin_beta', 'password123', 'Camp Beta'),
 ('admin_gamma', 'password123', 'Camp Gamma');
 
+-- Insertion des utilisateurs de connexion par défaut
+INSERT IGNORE INTO users (username, password, role, club) VALUES 
+('admin', 'admin', 'admin', 'sarcelles'),
+('alpha', 'alpha', 'animateur', 'Camp Alpha'),
+('beta', 'beta', 'animateur', 'Camp Beta'),
+('gamma', 'gamma', 'animateur', 'Camp Gamma'),
+('admin_alpha', 'password123', 'animateur', 'Camp Alpha'),
+('admin_beta', 'password123', 'animateur', 'Camp Beta'),
+('admin_gamma', 'password123', 'animateur', 'Camp Gamma');
