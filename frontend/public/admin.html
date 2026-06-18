@@ -111,7 +111,7 @@
 
   async function fetchMissionsFromDb(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`);
+      const res = await fetch(`/api/admin/missions/${encodeURIComponent(currentClub)}`);
       const data = await res.json();
       if (data) {
         missionNames = data;
@@ -127,8 +127,8 @@
   async function fetchChildrenFromDb(){
     try {
       const url = isAdmin 
-        ? `http://${window.location.hostname}:3001/api/admin/enfants` 
-        : `http://${window.location.hostname}:3001/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
+        ? `/api/admin/enfants`
+        : `/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
       const res = await fetch(url);
       const data = await res.json();
       children = {};
@@ -165,7 +165,7 @@
 
   async function fetchGiftsFromDb(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/boutique/cadeaux`);
+      const res = await fetch(`/api/boutique/cadeaux`);
       const data = await res.json();
       gifts = Array.isArray(data) ? data : [];
       if(currentPage==='boutique') renderApp();
@@ -199,7 +199,7 @@
     };
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+      const res = await fetch(`/api/admin/enfant/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -217,7 +217,7 @@
 
   async function deleteChild(id){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+      const res = await fetch(`/api/admin/enfant/${id}`, {
         method: 'DELETE'
       });
       if (!res.ok) {
@@ -232,7 +232,7 @@
 
   async function saveMissions(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`, {
+      const res = await fetch(`/api/admin/missions/${encodeURIComponent(currentClub)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ missions: missionNames })
@@ -331,7 +331,7 @@
     const errEl = document.getElementById('login-error');
     errEl.style.display='none';
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/auth/login`, {
+      const res = await fetch(`/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: usernameInput, password: pwd })
@@ -691,7 +691,7 @@
     }
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux`, {
+      const res = await fetch(`/api/admin/cadeaux`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, prix, stock })
@@ -724,7 +724,7 @@
     }
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+      const res = await fetch(`/api/admin/cadeaux/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom: gift.nom, prix, stock })
@@ -745,7 +745,7 @@
     if(!confirm("Supprimer cet article définitivement ?")) return;
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+      const res = await fetch(`/api/admin/cadeaux/${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -821,7 +821,7 @@
     };
     
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant`, {
+      const res = await fetch(`/api/admin/enfant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
