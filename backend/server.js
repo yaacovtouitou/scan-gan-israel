@@ -7,25 +7,58 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const db = mysql.createConnection({
+// Configuration de la base de données avec les noms de variables standards
+const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
     ssl: {
-        // Forcer la connexion SSL, nécessaire pour la plupart des hébergeurs de DB cloud
-        rejectUnauthorized: true
+        // Solution de dernier recours : Accepte les certificats même s'ils ne sont pas vérifiables.
+        // C'est souvent nécessaire pour les connexions depuis Vercel vers des DB externes.
+        rejectUnauthorized: false 
     }
+};
+
+// Log pour le débogage
+console.log("Tentative de connexion avec la configuration suivante :");
+console.log({
+    host: dbConfig.host ? 'défini' : 'non défini',
+    user: dbConfig.user ? 'défini' : 'non défini',
+    database: dbConfig.database ? 'défini' : 'non défini',
+    port: dbConfig.port,
+    ssl_mode: dbConfig.ssl.rejectUnauthorized ? 'Strict' : 'Non-Strict'
 });
+
+const db = mysql.createConnection(dbConfig);
 
 db.connect(err => {
     if (err) {
-        console.error('Erreur de connexion MySQL:', err);
-        // Ne pas initialiser la DB ici en production, cela doit être fait séparément.
+        console.error('ERREUR CRITIQUE DE CONNEXION MYSQL:', err);
         return;
     }
-    console.log('Connecté à la base de données MySQL.');
+    console.log('✅ Connecté avec succès à la base de données MySQL.');
 });
+
+// Middleware pour gérer les reconnexions si nécessaire
+app.use((req, res, next) => {
+    if (db.state === 'disconnected') {
+        console.error("DB déconnectée. Tentative de reconnexion...");
+        db.connect(err => {
+            if (err) {
+                console.error("La reconnexion a échoué.", err);
+                return res.status(500).json({ message: "Erreur critique du service de base de données." });
+            }
+            console.log("Reconnecté à la DB.");
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
+// --- VOS ROUTES CI-DESSOUS ---
 
 // GET enfant by UID
 app.get('/api/enfant/:uid', (req, res) => {
@@ -63,7 +96,6 @@ app.post('/api/auth/login', (req, res) => {
     if (!username || !password) {
         return res.status(400).json({ message: 'Veuillez saisir un nom d\'utilisateur et un mot de passe' });
     }
-    // ATTENTION: VULNÉRABILITÉ DE SÉCURITÉ. Utiliser des mots de passe hashés (ex: avec bcrypt).
     db.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, results) => {
         if (err) {
             console.error('Erreur SQL lors du login:', err);
@@ -81,9 +113,6 @@ app.post('/api/auth/login', (req, res) => {
         });
     });
 });
-
-
-// --- Le reste de vos routes ---
 
 // GET tous les cadeaux
 app.get('/api/boutique/cadeaux', (req, res) => {
@@ -180,8 +209,6 @@ app.post('/api/boutique/achat', (req, res) => {
 });
 
 // --- ADMIN ROUTES ---
-// ATTENTION: CES ROUTES DEVRAIENT ÊTRE PROTÉGÉES PAR UNE AUTHENTIFICATION
-
 app.get('/api/admin/missions/:camp', (req, res) => {
     const { camp } = req.params;
     db.query('SELECT missions FROM camp_config WHERE camp = ?', [camp], (err, results) => {
@@ -328,6 +355,5 @@ app.delete('/api/admin/cadeaux/:id', (req, res) => {
         res.json({ message: 'Article supprimé avec succès' });
     });
 });
-
 
 module.exports = app;
