@@ -326,7 +326,4 @@ app.delete('/api/admin/cadeaux/:id', (req, res) => {
     });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Serveur lancé sur le port ${PORT} (accessible sur le réseau local)`);
-});
+module.exports = app;

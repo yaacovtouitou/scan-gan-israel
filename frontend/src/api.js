@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const API_PORT = 3001;
-// On utilise l'IP de la machine actuelle pour que les tablettes s'y connectent
-const baseURL = `http://${window.location.hostname}:${API_PORT}/api`;
+// En production sur Vercel, le backend est servi sur la même URL,
+// il suffit donc d'utiliser un chemin relatif.
+// La configuration dans vercel.json s'occupe de rediriger /api vers le backend.
+const baseURL = '/api';
 
 const api = axios.create({
     baseURL,
@@ -13,5 +14,29 @@ export const getLeaderboard = () => api.get('/classement');
 export const updatePoints = (data) => api.post('/points', data);
 export const getCadeaux = () => api.get('/boutique/cadeaux');
 export const effectuerAchat = (data) => api.post('/boutique/achat', data);
+
+// --- API Admin ---
+// Note: J'ai ajouté les fonctions manquantes pour l'interface d'administration
+// en me basant sur les routes définies dans votre backend (server.js).
+
+// Auth
+export const login = (credentials) => api.post('/auth/login', credentials);
+
+// Mission Config
+export const getMissions = (camp) => api.get(`/admin/missions/${camp}`);
+export const saveMissions = (camp, missions) => api.post(`/admin/missions/${camp}`, { missions });
+
+// Enfants CRUD
+export const getEnfants = (camp) => api.get('/admin/enfants', { params: { camp } });
+export const createEnfant = (data) => api.post('/admin/enfant', data);
+export const updateEnfant = (id, data) => api.put(`/admin/enfant/${id}`, data);
+export const deleteEnfant = (id) => api.delete(`/admin/enfant/${id}`);
+
+// Cadeaux CRUD
+export const getAdminCadeaux = () => api.get('/admin/cadeaux');
+export const createCadeau = (data) => api.post('/admin/cadeaux', data);
+export const updateCadeau = (id, data) => api.put(`/admin/cadeaux/${id}`, data);
+export const deleteCadeau = (id) => api.delete(`/admin/cadeaux/${id}`);
+
 
 export default api;
