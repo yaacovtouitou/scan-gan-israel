@@ -1,26 +1,24 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { Pool, neonConfig } = require('@neondatabase/serverless');
+const ws = require('ws');
 const cors = require('cors');
-require('dotenv').config();
+
+neonConfig.webSocketConstructor = ws;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuration du pool de connexions
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  connectionString: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL
 });
 
-// Test de la connexion
+// Test de connexion
 pool.query('SELECT NOW()', (err, res) => {
     if (err) {
         console.error('ERREUR CRITIQUE DE CONNEXION A POSTGRESQL:', err);
     } else {
-        console.log('✅ Connecté avec succès au Pool PostgreSQL (Neon).');
+        console.log('✅ Connecté avec succès (Neon serverless).');
     }
 });
 
