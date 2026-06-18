@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // En production sur Vercel, avec experimentalServices, le backend est servi sur /_/backend
-const baseURL = '/_/backend';
+// Les routes dans server.js commencent par /api, il faut donc l'inclure.
+const baseURL = '/_/backend/api';
 
 const api = axios.create({
     baseURL,
