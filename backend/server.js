@@ -36,6 +36,11 @@ pool.query('SELECT NOW()', (err, res) => {
     }
 });
 
+// --- ROUTE DE TEST ---
+app.get('/api/test', (req, res) => {
+    res.status(200).json({ message: 'Le backend répond !' });
+});
+
 
 // --- VOS ROUTES ADAPTÉES POUR POSTGRESQL ---
 // Note: La syntaxe des requêtes paramétrées change de ? à $1, $2, etc.
