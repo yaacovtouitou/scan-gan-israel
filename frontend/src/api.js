@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// En production sur Vercel, le backend est servi sur la même URL,
-// il suffit donc d'utiliser un chemin relatif.
-// La configuration dans vercel.json s'occupe de rediriger /api vers le backend.
-const baseURL = '/api';
+// En production sur Vercel, avec experimentalServices, le backend est servi sur /_/backend
+const baseURL = '/_/backend';
 
 const api = axios.create({
     baseURL,
@@ -16,9 +14,6 @@ export const getCadeaux = () => api.get('/boutique/cadeaux');
 export const effectuerAchat = (data) => api.post('/boutique/achat', data);
 
 // --- API Admin ---
-// Note: J'ai ajouté les fonctions manquantes pour l'interface d'administration
-// en me basant sur les routes définies dans votre backend (server.js).
-
 // Auth
 export const login = (credentials) => api.post('/auth/login', credentials);
 
