@@ -147,6 +147,143 @@ app.post('/api/boutique/achat', async (req, res) => {
 });
 
 // --- ADMIN ROUTES ---
-// ... (Le reste des routes admin suit la même logique de conversion)
+
+app.get('/api/admin/missions/:camp', async (req, res) => {
+    const { camp } = req.params;
+    try {
+        const resDb = await pool.query('SELECT missions FROM camp_config WHERE camp = $1', [camp]);
+        if (resDb.rows.length === 0) return res.json(null);
+        try {
+            res.json(JSON.parse(resDb.rows[0].missions));
+        } catch(e) {
+            res.json(null);
+        }
+    } catch (err) {
+        console.error("Erreur SQL [getMissions]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/admin/missions/:camp', async (req, res) => {
+    const { camp } = req.params;
+    const { missions } = req.body;
+    const missionsStr = JSON.stringify(missions);
+    try {
+        await pool.query(
+            'INSERT INTO camp_config (camp, missions) VALUES ($1, $2) ON CONFLICT (camp) DO UPDATE SET missions = EXCLUDED.missions',
+            [camp, missionsStr]
+        );
+        res.json({ message: 'Configuration des missions sauvegardée avec succès' });
+    } catch (err) {
+        console.error("Erreur SQL [saveMissions]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.get('/api/admin/enfants', async (req, res) => {
+    const { camp } = req.query;
+    try {
+        const query = camp 
+            ? 'SELECT * FROM enfants WHERE camp = $1 ORDER BY nom ASC, prenom ASC'
+            : 'SELECT * FROM enfants ORDER BY nom ASC, prenom ASC';
+        const params = camp ? [camp] : [];
+        const resDb = await pool.query(query, params);
+        res.json(resDb.rows);
+    } catch (err) {
+        console.error("Erreur SQL [getEnfants]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/admin/enfant', async (req, res) => {
+    const { uid, nom, prenom, solde, dollars, admin_data, camp } = req.body;
+    try {
+        const resDb = await pool.query(
+            'INSERT INTO enfants (uid, nom, prenom, solde, dollars, admin_data, camp) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+            [uid, nom, prenom, solde || 0, dollars || 0, admin_data || null, camp || null]
+        );
+        res.json({ message: 'Enfant créé avec succès', id: resDb.rows[0].id });
+    } catch (err) {
+        console.error("Erreur SQL [createEnfant]", err);
+        res.status(500).json({ message: err.code === '23505' ? 'Cet UID de carte NFC existe déjà' : "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/admin/enfant/:id', async (req, res) => {
+    const { id } = req.params;
+    const { uid, nom, prenom, solde, dollars, admin_data, camp } = req.body;
+    try {
+        await pool.query(
+            'UPDATE enfants SET uid = $1, nom = $2, prenom = $3, solde = $4, dollars = $5, admin_data = $6, camp = $7 WHERE id = $8',
+            [uid, nom, prenom, solde, dollars, admin_data, camp, id]
+        );
+        res.json({ message: 'Enfant mis à jour avec succès' });
+    } catch (err) {
+        console.error("Erreur SQL [updateEnfant]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/admin/enfant/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM historique WHERE enfant_id = $1', [id]);
+        await pool.query('DELETE FROM enfants WHERE id = $1', [id]);
+        res.json({ message: 'Enfant supprimé avec succès' });
+    } catch (err) {
+        console.error("Erreur SQL [deleteEnfant]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.get('/api/admin/cadeaux', async (req, res) => {
+    try {
+        const resDb = await pool.query('SELECT * FROM cadeaux ORDER BY prix ASC');
+        res.json(resDb.rows);
+    } catch (err) {
+        console.error("Erreur SQL [getAdminCadeaux]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/api/admin/cadeaux', async (req, res) => {
+    const { nom, prix, stock } = req.body;
+    try {
+        const resDb = await pool.query(
+            'INSERT INTO cadeaux (nom, prix, stock) VALUES ($1, $2, $3) RETURNING id',
+            [nom, prix, stock || 0]
+        );
+        res.json({ message: 'Article créé avec succès', id: resDb.rows[0].id });
+    } catch (err) {
+        console.error("Erreur SQL [createCadeau]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.put('/api/admin/cadeaux/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nom, prix, stock } = req.body;
+    try {
+        await pool.query(
+            'UPDATE cadeaux SET nom = $1, prix = $2, stock = $3 WHERE id = $4',
+            [nom, prix, stock, id]
+        );
+        res.json({ message: 'Article mis à jour avec succès' });
+    } catch (err) {
+        console.error("Erreur SQL [updateCadeau]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.delete('/api/admin/cadeaux/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM cadeaux WHERE id = $1', [id]);
+        res.json({ message: 'Article supprimé avec succès' });
+    } catch (err) {
+        console.error("Erreur SQL [deleteCadeau]", err);
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
 
 module.exports = app;
