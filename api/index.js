@@ -142,6 +142,113 @@ app.get('/admin/missions/:camp', async (req, res) => {
     }
 });
 
-// ... (toutes les autres routes admin converties de la même manière)
+app.get('/admin/enfants', async (req, res) => {
+    const { camp } = req.query;
+    try {
+        const query = camp
+            ? 'SELECT * FROM enfants WHERE camp = $1 ORDER BY nom ASC, prenom ASC'
+            : 'SELECT * FROM enfants ORDER BY nom ASC, prenom ASC';
+        const params = camp ? [camp] : [];
+        const resDb = await pool.query(query, params);
+        res.json(resDb.rows);
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne du serveur." });
+    }
+});
+
+app.post('/admin/enfant', async (req, res) => {
+    const { uid, nom, prenom, solde, dollars, admin_data, camp } = req.body;
+    try {
+        const resDb = await pool.query(
+            'INSERT INTO enfants (uid, nom, prenom, solde, dollars, admin_data, camp) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+            [uid, nom, prenom, solde||0, dollars||0, admin_data||null, camp||null]
+        );
+        res.json({ message: 'Enfant créé', id: resDb.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ message: err.code === '23505' ? 'UID déjà existant' : "Erreur interne." });
+    }
+});
+
+app.put('/admin/enfant/:id', async (req, res) => {
+    const { id } = req.params;
+    const { uid, nom, prenom, solde, dollars, admin_data, camp } = req.body;
+    try {
+        await pool.query(
+            'UPDATE enfants SET uid=$1,nom=$2,prenom=$3,solde=$4,dollars=$5,admin_data=$6,camp=$7 WHERE id=$8',
+            [uid, nom, prenom, solde, dollars, admin_data, camp, id]
+        );
+        res.json({ message: 'Enfant mis à jour' });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.delete('/admin/enfant/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM historique WHERE enfant_id = $1', [id]);
+        await pool.query('DELETE FROM enfants WHERE id = $1', [id]);
+        res.json({ message: 'Enfant supprimé' });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.get('/admin/cadeaux', async (req, res) => {
+    try {
+        const resDb = await pool.query('SELECT * FROM cadeaux ORDER BY prix ASC');
+        res.json(resDb.rows);
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.post('/admin/cadeaux', async (req, res) => {
+    const { nom, prix, stock } = req.body;
+    try {
+        const resDb = await pool.query(
+            'INSERT INTO cadeaux (nom, prix, stock) VALUES ($1,$2,$3) RETURNING id',
+            [nom, prix, stock||0]
+        );
+        res.json({ message: 'Article créé', id: resDb.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.put('/admin/cadeaux/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nom, prix, stock } = req.body;
+    try {
+        await pool.query('UPDATE cadeaux SET nom=$1,prix=$2,stock=$3 WHERE id=$4', [nom, prix, stock, id]);
+        res.json({ message: 'Article mis à jour' });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.delete('/admin/cadeaux/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM cadeaux WHERE id = $1', [id]);
+        res.json({ message: 'Article supprimé' });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
+
+app.post('/admin/missions/:camp', async (req, res) => {
+    const { camp } = req.params;
+    const { missions } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO camp_config (camp, missions) VALUES ($1,$2) ON CONFLICT (camp) DO UPDATE SET missions = EXCLUDED.missions',
+            [camp, JSON.stringify(missions)]
+        );
+        res.json({ message: 'Missions sauvegardées' });
+    } catch (err) {
+        res.status(500).json({ message: "Erreur interne." });
+    }
+});
 
 module.exports = app;
