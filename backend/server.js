@@ -7,7 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuration de la base de données avec les noms de variables standards
+// Configuration de la base de données avec un POOL de connexions
+// C'est INDISPENSABLE pour les environnements Serverless comme Vercel
 const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -15,48 +16,26 @@ const dbConfig = {
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 3306,
     ssl: {
-        // Solution de dernier recours : Accepte les certificats même s'ils ne sont pas vérifiables.
-        // C'est souvent nécessaire pour les connexions depuis Vercel vers des DB externes.
         rejectUnauthorized: false 
-    }
+    },
+    waitForConnections: true,
+    connectionLimit: 10, // Limite le nombre de connexions simultanées
+    queueLimit: 0
 };
 
-// Log pour le débogage
-console.log("Tentative de connexion avec la configuration suivante :");
-console.log({
-    host: dbConfig.host ? 'défini' : 'non défini',
-    user: dbConfig.user ? 'défini' : 'non défini',
-    database: dbConfig.database ? 'défini' : 'non défini',
-    port: dbConfig.port,
-    ssl_mode: dbConfig.ssl.rejectUnauthorized ? 'Strict' : 'Non-Strict'
-});
+// Création du pool. On l'appelle "db" pour ne pas avoir à changer le reste du code.
+const db = mysql.createPool(dbConfig);
 
-const db = mysql.createConnection(dbConfig);
-
-db.connect(err => {
+// On teste la connexion initiale pour les logs
+db.getConnection((err, connection) => {
     if (err) {
-        console.error('ERREUR CRITIQUE DE CONNEXION MYSQL:', err);
-        return;
+        console.error('ERREUR CRITIQUE DE CONNEXION MYSQL AU POOL:', err);
+    } else {
+        console.log('✅ Connecté avec succès au Pool de base de données MySQL.');
+        connection.release(); // Libère la connexion pour qu'elle retourne dans le pool
     }
-    console.log('✅ Connecté avec succès à la base de données MySQL.');
 });
 
-// Middleware pour gérer les reconnexions si nécessaire
-app.use((req, res, next) => {
-    if (db.state === 'disconnected') {
-        console.error("DB déconnectée. Tentative de reconnexion...");
-        db.connect(err => {
-            if (err) {
-                console.error("La reconnexion a échoué.", err);
-                return res.status(500).json({ message: "Erreur critique du service de base de données." });
-            }
-            console.log("Reconnecté à la DB.");
-            next();
-        });
-    } else {
-        next();
-    }
-});
 
 // --- VOS ROUTES CI-DESSOUS ---
 
