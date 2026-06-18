@@ -8,9 +8,11 @@ app.use(cors());
 app.use(express.json());
 
 // Configuration du pool de connexions pour PostgreSQL (Neon)
-// La variable DATABASE_URL est fournie par Neon et Vercel
+// On utilise POSTGRES_URL en priorité (standard Vercel) ou DATABASE_URL en fallback.
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connectionString,
     ssl: {
         rejectUnauthorized: false
     }
@@ -20,6 +22,9 @@ const pool = new Pool({
 pool.query('SELECT NOW()', (err, res) => {
     if (err) {
         console.error('ERREUR CRITIQUE DE CONNEXION A POSTGRESQL:', err);
+        if (!connectionString) {
+            console.error("Aucune chaîne de connexion (POSTGRES_URL ou DATABASE_URL) n'a été trouvée dans les variables d'environnement.");
+        }
     } else {
         console.log('✅ Connecté avec succès au Pool PostgreSQL (Neon).');
     }
