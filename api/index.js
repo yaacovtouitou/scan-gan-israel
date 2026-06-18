@@ -7,14 +7,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Vercel passe le chemin complet /api/xxx, on strip le préfixe /api
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api')) {
-    req.url = req.url.slice(4) || '/';
-  }
-  next();
-});
-
 // Configuration du pool de connexions
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
