@@ -124,7 +124,8 @@
 
   async function fetchChildrenFromDb(){
     try {
-      const url = isAdmin 
+      const isGlobalAdmin = isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()));
+      const url = isGlobalAdmin 
         ? `/api/admin/enfants`
         : `/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
       const res = await fetch(url);
@@ -386,7 +387,7 @@
           <img src="/logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:6px;"/>
           <div>
             <h1 class="header-title">Tsivot Hashem</h1>
-            <p class="header-sub">${isAdmin?'Admin — tous les clubs':(currentClub ? 'Club '+currentClub.charAt(0).toUpperCase()+currentClub.slice(1) : '')}</p>
+            <p class="header-sub">${(isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()))) ? 'Admin — tous les clubs' : (currentClub ? 'Club '+currentClub.charAt(0).toUpperCase()+currentClub.slice(1) : '')}</p>
           </div>
         </div>
         <div class="header-actions">
@@ -824,7 +825,8 @@
     if(!nom || !nom.trim()) return;
     
     let camp = currentClub;
-    if (isAdmin) {
+    const isGlobalAdmin = isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()));
+    if (isGlobalAdmin) {
       camp = prompt("Camp de l'enfant (ex: Camp Alpha, Camp Beta, Camp Gamma) :");
       if (!camp || !camp.trim()) return;
       camp = camp.trim();

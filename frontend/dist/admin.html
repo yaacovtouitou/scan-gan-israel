@@ -103,15 +103,13 @@
   });
  
   async function startListening(){
-    // Fetch missions config from backend MySQL database
     await fetchMissionsFromDb();
-    // Fetch children from local MySQL database
     await fetchChildrenFromDb();
   }
 
   async function fetchMissionsFromDb(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`);
+      const res = await fetch(`/api/admin/missions/${encodeURIComponent(currentClub)}`);
       const data = await res.json();
       if (data) {
         missionNames = data;
@@ -119,16 +117,17 @@
         missionNames = {...DEFAULT_MISSIONS};
       }
     } catch(e) {
-      console.error("Erreur de chargement des missions depuis MySQL:", e);
+      console.error("Erreur de chargement des missions:", e);
       missionNames = {...DEFAULT_MISSIONS};
     }
   }
 
   async function fetchChildrenFromDb(){
     try {
-      const url = isAdmin 
-        ? `http://${window.location.hostname}:3001/api/admin/enfants` 
-        : `http://${window.location.hostname}:3001/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
+      const isGlobalAdmin = isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()));
+      const url = isGlobalAdmin 
+        ? `/api/admin/enfants`
+        : `/api/admin/enfants?camp=${encodeURIComponent(currentClub)}`;
       const res = await fetch(url);
       const data = await res.json();
       children = {};
@@ -159,13 +158,13 @@
       }
       renderApp();
     } catch(e) {
-      console.error("Erreur de chargement des enfants depuis MySQL:", e);
+      console.error("Erreur de chargement des enfants:", e);
     }
   }
 
   async function fetchGiftsFromDb(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/boutique/cadeaux`);
+      const res = await fetch(`/api/boutique/cadeaux`);
       const data = await res.json();
       gifts = Array.isArray(data) ? data : [];
       if(currentPage==='boutique') renderApp();
@@ -199,7 +198,7 @@
     };
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+      const res = await fetch(`/api/admin/enfant/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -217,7 +216,7 @@
 
   async function deleteChild(id){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant/${id}`, {
+      const res = await fetch(`/api/admin/enfant/${id}`, {
         method: 'DELETE'
       });
       if (!res.ok) {
@@ -232,7 +231,7 @@
 
   async function saveMissions(){
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/missions/${encodeURIComponent(currentClub)}`, {
+      const res = await fetch(`/api/admin/missions/${encodeURIComponent(currentClub)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ missions: missionNames })
@@ -290,6 +289,14 @@
     child.lastActivity = Date.now();
     await saveChild(childId, child);
   }
+
+  async function addBonusDollars(childId, amount, isRemove){
+    let child = {...children[childId]};
+    const delta = isRemove ? -Math.abs(amount) : Math.abs(amount);
+    child.dollars = Math.max(0, child.dollars + delta);
+    child.lastActivity = Date.now();
+    await saveChild(childId, child);
+  }
  
   async function resetChildMissions(childId){
     let child = {...children[childId]};
@@ -331,7 +338,7 @@
     const errEl = document.getElementById('login-error');
     errEl.style.display='none';
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/auth/login`, {
+      const res = await fetch(`/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: usernameInput, password: pwd })
@@ -380,7 +387,7 @@
           <img src="/logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:6px;"/>
           <div>
             <h1 class="header-title">Tsivot Hashem</h1>
-            <p class="header-sub">${isAdmin?'Admin — tous les clubs':(currentClub ? 'Club '+currentClub.charAt(0).toUpperCase()+currentClub.slice(1) : '')}</p>
+            <p class="header-sub">${(isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()))) ? 'Admin — tous les clubs' : (currentClub ? 'Club '+currentClub.charAt(0).toUpperCase()+currentClub.slice(1) : '')}</p>
           </div>
         </div>
         <div class="header-actions">
@@ -514,6 +521,24 @@
           <div class="bonus-row">
             <input type="number" id="bonus-remove" placeholder="0" min="0" class="bonus-input"/>
             <button class="btn-bonus remove" onclick="window._applyBonus(true)">Valider</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Dollars bonus / retrait</div>
+      <div class="bonus-area">
+        <div class="bonus-box">
+          <div class="bonus-label">➕ Ajouter des dollars</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-add-dollars" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus add" onclick="window._applyBonusDollars(false)">Valider</button>
+          </div>
+        </div>
+        <div class="bonus-box">
+          <div class="bonus-label">➖ Retirer des dollars</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-remove-dollars" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus remove" onclick="window._applyBonusDollars(true)">Valider</button>
           </div>
         </div>
       </div>
@@ -691,7 +716,7 @@
     }
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux`, {
+      const res = await fetch(`/api/admin/cadeaux`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, prix, stock })
@@ -724,7 +749,7 @@
     }
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+      const res = await fetch(`/api/admin/cadeaux/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom: gift.nom, prix, stock })
@@ -745,7 +770,7 @@
     if(!confirm("Supprimer cet article définitivement ?")) return;
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/cadeaux/${id}`, {
+      const res = await fetch(`/api/admin/cadeaux/${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -800,7 +825,8 @@
     if(!nom || !nom.trim()) return;
     
     let camp = currentClub;
-    if (isAdmin) {
+    const isGlobalAdmin = isAdmin && (!currentClub || ['all', 'tous', 'global'].includes(currentClub.toLowerCase().trim()));
+    if (isGlobalAdmin) {
       camp = prompt("Camp de l'enfant (ex: Camp Alpha, Camp Beta, Camp Gamma) :");
       if (!camp || !camp.trim()) return;
       camp = camp.trim();
@@ -821,7 +847,7 @@
     };
     
     try {
-      const res = await fetch(`http://${window.location.hostname}:3001/api/admin/enfant`, {
+      const res = await fetch(`/api/admin/enfant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -848,6 +874,14 @@
     const val = parseInt(document.getElementById(inputId).value)||0;
     if(val<=0) return;
     await addBonusPoints(currentChildId, val, isRemove);
+    document.getElementById(inputId).value='';
+  };
+
+  window._applyBonusDollars = async function(isRemove){
+    const inputId = isRemove?'bonus-remove-dollars':'bonus-add-dollars';
+    const val = parseInt(document.getElementById(inputId).value)||0;
+    if(val<=0) return;
+    await addBonusDollars(currentChildId, val, isRemove);
     document.getElementById(inputId).value='';
   };
  
@@ -1013,7 +1047,7 @@
   .dollar-mid{background:#78350f;color:#fcd34d;}
   .dollar-high{background:#7f1d1d;color:#fca5a5;}
  
-  .bonus-area{padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .bonus-area{padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom: 16px;}
   .bonus-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .bonus-label{font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2);}
   .bonus-row{display:flex;gap:8px;}
