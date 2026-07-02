@@ -103,9 +103,7 @@
   });
  
   async function startListening(){
-    // Fetch missions config from backend MySQL database
     await fetchMissionsFromDb();
-    // Fetch children from local MySQL database
     await fetchChildrenFromDb();
   }
 
@@ -119,7 +117,7 @@
         missionNames = {...DEFAULT_MISSIONS};
       }
     } catch(e) {
-      console.error("Erreur de chargement des missions depuis MySQL:", e);
+      console.error("Erreur de chargement des missions:", e);
       missionNames = {...DEFAULT_MISSIONS};
     }
   }
@@ -159,7 +157,7 @@
       }
       renderApp();
     } catch(e) {
-      console.error("Erreur de chargement des enfants depuis MySQL:", e);
+      console.error("Erreur de chargement des enfants:", e);
     }
   }
 
@@ -287,6 +285,14 @@
     child.totalPoints = Math.max(0, child.totalPoints+delta);
     child.bonusHistory = child.bonusHistory||[];
     child.bonusHistory.push({delta, date:Date.now()});
+    child.lastActivity = Date.now();
+    await saveChild(childId, child);
+  }
+
+  async function addBonusDollars(childId, amount, isRemove){
+    let child = {...children[childId]};
+    const delta = isRemove ? -Math.abs(amount) : Math.abs(amount);
+    child.dollars = Math.max(0, child.dollars + delta);
     child.lastActivity = Date.now();
     await saveChild(childId, child);
   }
@@ -514,6 +520,24 @@
           <div class="bonus-row">
             <input type="number" id="bonus-remove" placeholder="0" min="0" class="bonus-input"/>
             <button class="btn-bonus remove" onclick="window._applyBonus(true)">Valider</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Dollars bonus / retrait</div>
+      <div class="bonus-area">
+        <div class="bonus-box">
+          <div class="bonus-label">➕ Ajouter des dollars</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-add-dollars" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus add" onclick="window._applyBonusDollars(false)">Valider</button>
+          </div>
+        </div>
+        <div class="bonus-box">
+          <div class="bonus-label">➖ Retirer des dollars</div>
+          <div class="bonus-row">
+            <input type="number" id="bonus-remove-dollars" placeholder="0" min="0" class="bonus-input"/>
+            <button class="btn-bonus remove" onclick="window._applyBonusDollars(true)">Valider</button>
           </div>
         </div>
       </div>
@@ -850,6 +874,14 @@
     await addBonusPoints(currentChildId, val, isRemove);
     document.getElementById(inputId).value='';
   };
+
+  window._applyBonusDollars = async function(isRemove){
+    const inputId = isRemove?'bonus-remove-dollars':'bonus-add-dollars';
+    const val = parseInt(document.getElementById(inputId).value)||0;
+    if(val<=0) return;
+    await addBonusDollars(currentChildId, val, isRemove);
+    document.getElementById(inputId).value='';
+  };
  
   window._resetMissions = async function(){
     if(!confirm("Réinitialiser les missions du jour pour ce soldat ?")) return;
@@ -1013,7 +1045,7 @@
   .dollar-mid{background:#78350f;color:#fcd34d;}
   .dollar-high{background:#7f1d1d;color:#fca5a5;}
  
-  .bonus-area{padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .bonus-area{padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom: 16px;}
   .bonus-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .bonus-label{font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2);}
   .bonus-row{display:flex;gap:8px;}
